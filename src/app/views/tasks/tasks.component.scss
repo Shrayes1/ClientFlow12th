@@ -17,22 +17,7 @@ mat-step-label {
   font-weight: bold;
 }
 
-/* Upload Container */
-.upload-container {
-  margin-top: 40px;
-  display: flex;
-  justify-content: center;
-}
-
-.upload-section {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 500px;
-}
-
+/* Upload Styles */
 .upload-box {
   display: flex;
   flex-direction: column;
@@ -41,6 +26,7 @@ mat-step-label {
   border: 2px dashed #ddd;
   cursor: pointer;
   text-align: center;
+  margin-bottom: 15px;
 }
 
 .upload-box input {
@@ -87,6 +73,7 @@ progress::-webkit-progress-value {
   border-radius: 5px;
 }
 
+/* Button Group and Unified Button Styles */
 .button-group {
   display: flex;
   justify-content: space-between;
@@ -94,20 +81,42 @@ progress::-webkit-progress-value {
   gap: 15px;
 }
 
-.cancel, .save {
+/* Use ::ng-deep to pierce encapsulation and override Material styles */
+::ng-deep .action-button.mat-button {
   padding: 10px 15px;
   border: none;
   border-radius: 5px;
   cursor: pointer;
   font-size: 14px;
+  background-color: #1E2029 !important; /* Black background */
+  color: white !important; /* White text */
 }
 
-.cancel {
-  background: #ddd;
-  color: #333;
+/* Ensure Cancel and Save buttons match */
+::ng-deep .action-button.cancel.mat-button {
+  background-color: #1E2029 !important;
+  color: white !important;
 }
 
-.save {
-  background: #1E2029;
-  color: white;
+/* Ensure Save button matches */
+::ng-deep .action-button.save.mat-button {
+  background-color: #1E2029 !important;
+  color: white !important;
+}
+
+/* Disabled state */
+::ng-deep .action-button.mat-button[disabled] {
+  background-color: #666 !important; /* Greyed out when disabled */
+  color: white !important; /* Keep white text */
+  cursor: not-allowed;
+}
+
+/* ✅ Completion Time Styling */
+.completion-time {
+  font-size: 14px;
+  color: #4CAF50;
+  margin-top: 10px;
+  font-weight: 500;
+  text-align: center;
+  display: block;
 }
