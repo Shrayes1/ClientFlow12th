@@ -1,0 +1,94 @@
+<div class="task-management-container">
+  <h2>Task Management</h2>
+  
+  <div class="stepper-upload-container">
+    <!-- Angular Material Horizontal Stepper  -->
+    <mat-horizontal-stepper [linear]="isLinear" #stepper>
+      <mat-step [stepControl]="firstFormGroup">
+        <form [formGroup]="firstFormGroup">
+          <ng-template matStepLabel>Client Addition</ng-template>
+          <div>
+            <button mat-button matStepperNext>Verify</button>
+          </div>
+        </form>
+      </mat-step>
+  
+      <mat-step [stepControl]="secondFormGroup">
+        <form [formGroup]="secondFormGroup">
+          <ng-template matStepLabel>Upload Draft Contract</ng-template>
+          <p>Upload the draft contract before proceeding.</p>
+          <label class="upload-box">
+            <input type="file" (change)="onFileSelected($event)">
+            <span class="upload-icon">📂</span>
+            <p>Click to upload</p>
+          </label>
+          <div>
+            <button mat-button matStepperPrevious>Back</button>
+            <button mat-button matStepperNext>Next</button>
+          </div>
+        </form>
+      </mat-step>
+  
+      <mat-step>
+        <ng-template matStepLabel>Upload Final Contract</ng-template>
+        <p>Upload the final contract.</p>
+        <label class="upload-box">
+          <input type="file" (change)="onFileSelected($event)">
+          <span class="upload-icon">📂</span>
+          <p>Click to upload</p>
+        </label>
+        <div>
+          <button mat-button matStepperPrevious>Back</button>
+          <button mat-button matStepperNext>Next</button>
+        </div>
+      </mat-step>
+  
+      <mat-step>
+        <ng-template matStepLabel>Release Invoice</ng-template>
+        <p>Invoice will be released upon final approval.</p>
+        <div>
+          <button mat-button matStepperPrevious>Back</button>
+          <button mat-button matStepperNext>Next</button>
+        </div>
+      </mat-step>
+  
+      <mat-step>
+        <ng-template matStepLabel>Payment Received</ng-template>
+        <p>Payment has been received. Process completed.</p>
+        <div>
+          <button mat-button matStepperPrevious>Back</button>
+          <button mat-button (click)="stepper.reset()">Reset</button>
+        </div>
+      </mat-step>
+    </mat-horizontal-stepper>
+  
+    <!-- Upload Section-->
+    <div class="upload-container">
+      <div class="upload-section">
+        <h3>Upload Contract Draft</h3>
+  
+        <label class="upload-box">
+          <input type="file" (change)="onFileSelected($event)">
+          <span class="upload-icon">&#x2b;</span>
+          <p>Click to upload</p>
+        </label>
+  
+        <div *ngIf="fileName" class="file-info">
+          <button class="file-type">{{ getFileType(fileName) }}</button>
+          <button class="file-size">{{ fileSize }}</button>
+  
+          <div class="file-progress">
+            <span>{{ fileName }}</span>
+            <span *ngIf="isUploading">{{ uploadProgress }}% Uploading • {{ fileSize }}</span>
+            <progress [value]="uploadProgress" max="100"></progress>
+          </div>
+        </div>
+  
+        <div class="button-group">
+          <button class="cancel" (click)="cancelUpload()">Cancel</button>
+          <button class="save" [disabled]="uploadProgress < 100" (click)="saveAndContinue()">Save and Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
