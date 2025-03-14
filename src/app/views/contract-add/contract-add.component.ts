@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { cilPlus } from '@coreui/icons';
 import { IconComponent } from '@coreui/icons-angular';
-
 import { 
   GridModule,   
   CardModule,   
@@ -12,18 +11,13 @@ import {
   AvatarModule, 
   ProgressModule 
 } from '@coreui/angular';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
-// ✅ Define the User interface
+// Define the User interface
 interface User {
   name: string;
-  clientName: string;
-  clientId: string;
+  client_id: string;
   email: string;
-  profilePic?: string;
-  progress: number;
-  stage: string;
-  contract: File | null;
-  contractUrl?: string;
 }
 
 @Component({
@@ -38,7 +32,8 @@ interface User {
     IconComponent, 
     TableModule, 
     AvatarModule, 
-    ProgressModule
+    ProgressModule,
+    
   ],
   templateUrl: './contract-add.component.html',
   styleUrls: ['./contract-add.component.css']
@@ -47,64 +42,92 @@ export class ContractAddComponent {
   showUserForm = false;
   uploadedFiles: File[] = [];
   icons = { cilPlus };
-
-  users: User[] = [
-    { name: 'John Doe', clientName: 'ABC Corp', clientId: '12345', email: 'john@example.com', progress: this.getRandomProgress(), stage: 'In Progress', contract: null, profilePic: 'assets/profile1.jpg' },
-    { name: 'Jane Smith', clientName: 'XYZ Ltd', clientId: '67890', email: 'jane@example.com', progress: this.getRandomProgress(), stage: 'Review', contract: null, profilePic: 'assets/profile2.jpg' }
-  ];
   
-  // ✅ Function to generate a random progress value (0 - 100)
-  getRandomProgress(): number {
-    return Math.floor(Math.random() * 101);
-  }
+  private apiBaseUrl = 'https://3fa9-14-143-149-238.ngrok-free.app';
+  private addUserApi = 'https://3fa9-14-143-149-238.ngrok-free.app/add_client';//`${this.apiBaseUrl}/add_client`;  // POST URL
+  private getUsersApi = 'https://3fa9-14-143-149-238.ngrok-free.app/get_all_clients';//`${this.apiBaseUrl}/get_all_clients`;  // GET URL
 
+  users: User[] = [];
+  
   newUser: User = {
     name: '',
-    clientName: '',
-    clientId: '',
-    email: '',
-    progress: 0,
-    stage: 'Not Started',
-    contract: null,
-    profilePic: ''
+    client_id: '',
+    email: ''
   };
+
+  constructor(private http: HttpClient) {
+    this.fetchUsers(); // Load initial data
+  }
+
+  // Fetch users from the backend
+  fetchUsers(): void {
+    this.http.get<{ clients: User[] }>(this.getUsersApi).subscribe({
+      next: (response) => {
+        console.log('Fetched users:', response);
+        this.users = response.clients;  // ✅ Extract the correct array
+      },
+      error: (error) => {
+        console.error('Error fetching users:', error);
+        alert('Failed to fetch clients. Please check your connection.');
+      }
+    });
+  }
+  
+  
 
   toggleUserForm() {
     this.showUserForm = !this.showUserForm;
   }
 
   addUser() {
-    if (!this.newUser.contract) {
-      alert('Please upload a contract before saving.');
-      return;
-    }
-    
-    const contractUrl = URL.createObjectURL(this.newUser.contract);
-    this.users = [...this.users, { ...this.newUser, contractUrl }];
-    this.resetForm();
+    const payload: User = { ...this.newUser };
+
+    console.log('Sending POST request to:', this.addUserApi);
+    console.log('Payload:', JSON.stringify(payload));
+
+    this.http.post(this.addUserApi, payload, {
+      headers: new HttpHeaders({ 'Content-Type': 'application/json;charset=UTF-8' }),
+      observe: 'response'  // Observe full response for debugging
+    }).subscribe({
+      next: (response) => {
+        console.log('Full Response:', response);
+        console.log('Response Body:', response.body);
+        
+        // Ensure fetchUsers() runs only if the request was successful
+        if (response.status === 200 || response.status === 201) {
+          this.fetchUsers(); // Refresh list from backend
+          this.resetForm();
+        } else {
+          console.warn('Unexpected response status:', response.status);
+        }
+      },
+      error: (err) => {
+        console.error('Error adding user:', err);
+        alert(`Failed to add client: ${err.message}`);
+      }
+    });
   }
 
+  
+
   resetForm() {
-    this.newUser = { name: '', clientName: '', clientId: '', email: '', progress: 0, stage: 'Not Started', contract: null, profilePic: '' };
+    this.newUser = { 
+      name: '', 
+      client_id: '',
+      email: ''
+    };
     this.showUserForm = false;
   }
 
   viewContract(user: User) {
-    if (user.contractUrl) {
-      window.open(user.contractUrl, '_blank');
-    } else {
-      alert('No contract available.');
-    }
+    alert(`Contract viewing for ${user.name} is not supported yet.`);
   }
 
   getProgressColor(percentage: number): string {
-    if (percentage >= 80) return 'success';  
-    if (percentage >= 65) return 'info';  
-    if (percentage >= 35) return 'warning';     
-    return 'danger';  
+    return 'info'; // Placeholder
   }
 
-  // ✅ Drag & Drop for Contract Upload
+  // File Drag & Drop Handlers
   onDragOver(event: DragEvent) {
     event.preventDefault();
   }
@@ -115,23 +138,5 @@ export class ContractAddComponent {
 
   onContractDropped(event: DragEvent) {
     event.preventDefault();
-    if (event.dataTransfer?.files.length) {
-      this.newUser.contract = event.dataTransfer.files[0] || null;
-    }
-  }
-
-  onContractSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      this.newUser.contract = input.files[0] || null;
-    }
-  }
-
-  onProfilePicSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (input.files?.length) {
-      const file = input.files[0];
-      this.newUser.profilePic = URL.createObjectURL(file);
-    }
   }
 }

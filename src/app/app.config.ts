@@ -11,9 +11,10 @@ import {
  
 import { DropdownModule, SidebarModule } from '@coreui/angular';
 import { IconSetService } from '@coreui/icons-angular';
-import { HttpClientModule } from '@angular/common/http';
+
 import { ReactiveFormsModule } from '@angular/forms';
 import { BrowserModule } from '@angular/platform-browser';
+import { provideHttpClient } from '@angular/common/http';
  
 import { routes } from './app.routes';
  
@@ -35,12 +36,13 @@ export const appConfig: ApplicationConfig = {
     importProvidersFrom(
       BrowserModule,
       ReactiveFormsModule,
-      HttpClientModule,
+      
       SidebarModule,
       DropdownModule
     ),
     IconSetService,
-    provideAnimationsAsync()
+    provideAnimationsAsync(),
+    provideHttpClient()
   ]
 };
  
