@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { cilPlus } from '@coreui/icons';
@@ -33,19 +33,18 @@ interface User {
     TableModule, 
     AvatarModule, 
     ProgressModule,
-    
   ],
   templateUrl: './contract-add.component.html',
   styleUrls: ['./contract-add.component.css']
 })
-export class ContractAddComponent {
+export class ContractAddComponent implements OnInit {
   showUserForm = false;
   uploadedFiles: File[] = [];
   icons = { cilPlus };
   
-  private apiBaseUrl = 'https://3fa9-14-143-149-238.ngrok-free.app';
-  private addUserApi = 'https://3fa9-14-143-149-238.ngrok-free.app/add_client';//`${this.apiBaseUrl}/add_client`;  // POST URL
-  private getUsersApi = 'https://3fa9-14-143-149-238.ngrok-free.app/get_all_clients';//`${this.apiBaseUrl}/get_all_clients`;  // GET URL
+  private apiBaseUrl = 'https://1451-14-143-149-238.ngrok-free.app/';
+  private addUserApi = 'https://1451-14-143-149-238.ngrok-free.app/add_client'; // POST URL
+  private getUsersApi = 'https://1451-14-143-149-238.ngrok-free.app/get_all_clients'; // GET URL
 
   users: User[] = [];
   
@@ -55,26 +54,30 @@ export class ContractAddComponent {
     email: ''
   };
 
-  constructor(private http: HttpClient) {
-    this.fetchUsers(); // Load initial data
+  constructor(private http: HttpClient) {}
+
+  ngOnInit(): void {
+    this.fetchUsers(); // Load initial data on component initialization
   }
 
   // Fetch users from the backend
   fetchUsers(): void {
-    this.http.get<{ clients: User[] }>(this.getUsersApi).subscribe({
+    console.log('Fetching users from:', this.getUsersApi);
+    this.http.get<any>(this.getUsersApi, {
+      headers: new HttpHeaders({ 'Accept': 'application/json','ngrok-skip-browser-warning':"69420" })
+    }).subscribe({
       next: (response) => {
-        console.log('Fetched users:', response);
-        this.users = response.clients;  // ✅ Extract the correct array
+        console.log('Raw response:', response);
+        // Handle different possible response structures
+        this.users = response.clients || response || [];
       },
       error: (error) => {
-        console.error('Error fetching users:', error);
-        alert('Failed to fetch clients. Please check your connection.');
+        console.error('Error fetching users:', error.status, error.statusText, error.error);
+        alert(`Failed to fetch clients: ${error.statusText || error.message}`);
       }
     });
   }
   
-  
-
   toggleUserForm() {
     this.showUserForm = !this.showUserForm;
   }
@@ -95,7 +98,8 @@ export class ContractAddComponent {
         
         // Ensure fetchUsers() runs only if the request was successful
         if (response.status === 200 || response.status === 201) {
-          this.fetchUsers(); // Refresh list from backend
+          // Prepend the new user to the existing user list
+          this.users.unshift(payload);  // Adds the new user at the top
           this.resetForm();
         } else {
           console.warn('Unexpected response status:', response.status);
@@ -107,8 +111,6 @@ export class ContractAddComponent {
       }
     });
   }
-
-  
 
   resetForm() {
     this.newUser = { 
