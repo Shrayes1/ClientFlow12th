@@ -4,7 +4,7 @@
     <c-card class="mb-4" *ngIf="showUserForm">
       <c-card-body>
         <h5>Add New Client</h5>
-        <form (ngSubmit)="addUser()">
+        <form (ngSubmit)="addUser()" enctype="multipart/form-data">
           <c-row>
             <c-col md="6">
               <label for="userName">Username</label>
@@ -19,6 +19,10 @@
             <c-col md="6">
               <label for="email">Email</label>
               <input id="email" type="email" class="form-control" [(ngModel)]="newUser.email" name="email" required />
+            </c-col>
+            <c-col md="6">
+              <label for="file">Initial Proposal Document</label>
+              <input id="file" type="file" class="form-control" (change)="onFileSelected($event)" />
             </c-col>
           </c-row>
           <div class="mt-4">
@@ -48,18 +52,23 @@
         <table class="table table-striped table-hover" *ngIf="users.length > 0; else noClients">
           <thead>
             <tr>
-              <th>Sl No</th> <!-- Replace profile icon with Sl No -->
+              <th>Sl No</th>
               <th>Username</th>
               <th>Client ID</th>
               <th>Email</th>
+              <th>Proposal Document</th> <!-- Added column -->
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let user of users; let i = index">
-              <td>{{ i + 1 }}</td> <!-- Serial number (index + 1) -->
+              <td>{{ i + 1 }}</td>
               <td>{{ user.name }}</td>
               <td>{{ user.client_id }}</td>
               <td>{{ user.email }}</td>
+              <td>
+                <a *ngIf="user.file" [href]="user.file" target="_blank">View Document</a>
+                <span *ngIf="!user.file" class="text-muted">No Document</span>
+              </td>
             </tr>
           </tbody>
         </table>

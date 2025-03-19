@@ -49,7 +49,7 @@ export class LoginComponent {
   loginForm: FormGroup;
   submitted = false;
   errorMessage: string = ''; // ✅ Added for error handling
-  private apiUrl = 'https://9530-14-143-149-238.ngrok-free.app/login'; // 🔹 Replace with your actual API endpoint
+  private apiUrl = 'https://firrst-host-try.onrender.com/login'; // 🔹 Replace with your actual API endpoint
 
   constructor(private fb: FormBuilder, private router: Router, private http: HttpClient) {
     this.loginForm = this.fb.group({
