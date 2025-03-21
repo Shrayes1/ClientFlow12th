@@ -1,107 +1,227 @@
 <div class="task-management-container">
   <h2>Task Management</h2>
-  
+
   <div class="stepper-upload-container">
-    <!-- Angular Material Horizontal Stepper -->
-    <mat-horizontal-stepper [linear]="isLinear" #stepper>
-      <mat-step [stepControl]="firstFormGroup" [editable]="stepCompleted[0] || stepper.selectedIndex === 0">
+    <mat-horizontal-stepper [linear]="false" #stepper (selectionChange)="onStepChange($event.selectedIndex)">
+      <!-- Step 1: Client Addition -->
+      <mat-step [stepControl]="firstFormGroup">
         <form [formGroup]="firstFormGroup">
-          <ng-template matStepLabel>Client Addition</ng-template>
-          <div>
-            <button mat-button (click)="onStepComplete(0, stepper)">Verify</button>
-            <button mat-button (click)="resetStep(0, stepper)">Reset</button>
+          <ng-template matStepLabel><span (click)="selectStep(0)">Client Addition</span></ng-template>
+          <p>Add client details to proceed.</p>
+          <div class="button-group">
+            <button mat-button (click)="onStepComplete(0, stepper)">Next</button>
           </div>
-          <!-- Display completion time -->
-          <span class="completion-time" *ngIf="completionTimes[0]">
-            Completed: {{ completionTimes[0] }}
-          </span>
         </form>
       </mat-step>
-  
-      <mat-step [stepControl]="secondFormGroup" [editable]="stepCompleted[1] || stepper.selectedIndex === 1">
+
+      <!-- Step 2: Upload Draft Contract -->
+      <mat-step [stepControl]="secondFormGroup">
         <form [formGroup]="secondFormGroup">
-          <ng-template matStepLabel>Upload Draft Contract</ng-template>
+          <ng-template matStepLabel><span (click)="selectStep(1)">Upload Draft Contract</span></ng-template>
           <p>Upload the draft contract before proceeding.</p>
+
           <label class="upload-box">
-            <input type="file" (change)="onFileSelected($event, 1)">
+            <input type="file" (change)="onFileSelected($event, 1)" accept=".doc,.docx,.pdf">
             <span class="upload-icon">+</span>
             <p>Click to upload</p>
           </label>
-          <div *ngIf="fileName && activeStepIndex === 1" class="file-info">
+
+          <div *ngIf="fileName && isUploading" class="file-info">
             <button class="file-type">{{ getFileType(fileName) }}</button>
             <button class="file-size">{{ fileSize }}</button>
             <div class="file-progress">
               <span>{{ fileName }}</span>
-              <span *ngIf="isUploading">{{ uploadProgress }}% Uploading • {{ fileSize }}</span>
+              <span>{{ uploadProgress }}% Uploading • {{ fileSize }}</span>
               <progress [value]="uploadProgress" max="100"></progress>
             </div>
           </div>
+
           <div class="button-group">
-            <button mat-button class="action-button" (click)="onStepComplete(1, stepper)">Next</button>
-            <button mat-button class="action-button" (click)="resetStep(1, stepper)">Reset</button>
+            <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(1, stepper)">Save</button>
             <button mat-button class="action-button cancel" (click)="cancelUpload()">Cancel</button>
-            <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(1, stepper)">Save and Continue</button>
+            <button mat-button class="action-button" (click)="onStepComplete(1, stepper)">Continue</button>
           </div>
-          <!-- Display completion time -->
-          <span class="completion-time" *ngIf="completionTimes[1]">
-            Completed: {{ completionTimes[1] }}
-          </span>
+
+          <!-- Draft Contracts Table -->
+          <div *ngIf="activeStepIndex === 1" class="uploaded-files-container">
+            <h3>Contract Draft Versions</h3>
+            <div *ngIf="uploadedDraftFiles.length === 0">
+              <p>No draft contracts uploaded yet.</p>
+            </div>
+            <div *ngIf="uploadedDraftFiles.length > 0">
+              <div class="filter-container">
+                <input type="text" [(ngModel)]="searchQuery" placeholder="Search by name or date..." (input)="filterFiles()" />
+                <span class="sort-label">Sort</span>
+                <select [(ngModel)]="sortOrder" (change)="sortFiles()">
+                  <option value="desc">Newest First</option>
+                  <option value="asc">Oldest First</option>
+                </select>
+              </div>
+
+              <table class="file-table">
+                <thead>
+                  <tr>
+                    <th>File Name</th>
+                    <th>Size</th>
+                    <th>Type</th>
+                    <th>Date Uploaded</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let file of filteredDraftFiles">
+                    <td>{{ file.name }}</td>
+                    <td>{{ file.size }}</td>
+                    <td>{{ file.type }}</td>
+                    <td>{{ file.date }}</td>
+                    <td>
+                      <button mat-button (click)="downloadFile(file)">Download</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </form>
       </mat-step>
-  
-      <mat-step [editable]="stepCompleted[2] || stepper.selectedIndex === 2">
-        <ng-template matStepLabel>Upload Final Contract</ng-template>
-        <p>Upload the final contract.</p>
-        <label class="upload-box">
-          <input type="file" (change)="onFileSelected($event, 2)">
-          <span class="upload-icon">+</span>
-          <p>Click to upload</p>
-        </label>
-        <div *ngIf="fileName && activeStepIndex === 2" class="file-info">
-          <button class="file-type">{{ getFileType(fileName) }}</button>
-          <button class="file-size">{{ fileSize }}</button>
-          <div class="file-progress">
-            <span>{{ fileName }}</span>
-            <span *ngIf="isUploading">{{ uploadProgress }}% Uploading • {{ fileSize }}</span>
-            <progress [value]="uploadProgress" max="100"></progress>
+
+      <!-- Step 3: Upload Final Contract -->
+      <mat-step [stepControl]="thirdFormGroup">
+        <form [formGroup]="thirdFormGroup">
+          <ng-template matStepLabel><span (click)="selectStep(2)">Upload Final Contract</span></ng-template>
+          <p>Upload the final contract.</p>
+
+          <label class="upload-box">
+            <input type="file" (change)="onFileSelected($event, 2)" accept=".doc,.docx,.pdf">
+            <span class="upload-icon">+</span>
+            <p>Click to upload</p>
+          </label>
+
+          <div *ngIf="fileName && isUploading" class="file-info">
+            <button class="file-type">{{ getFileType(fileName) }}</button>
+            <button class="file-size">{{ fileSize }}</button>
+            <div class="file-progress">
+              <span>{{ fileName }}</span>
+              <span>{{ uploadProgress }}% Uploading • {{ fileSize }}</span>
+              <progress [value]="uploadProgress" max="100"></progress>
+            </div>
           </div>
-        </div>
-        <div class="button-group">
-          <button mat-button class="action-button" (click)="onStepComplete(2, stepper)">Next</button>
-          <button mat-button class="action-button" (click)="resetStep(2, stepper)">Reset</button>
-          <button mat-button class="action-button cancel" (click)="cancelUpload()">Cancel</button>
-          <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(2, stepper)">Save and Continue</button>
-        </div>
-        <!-- Display completion time -->
-        <span class="completion-time" *ngIf="completionTimes[2]">
-          Completed: {{ completionTimes[2] }}
-        </span>
+
+          <div class="button-group">
+            <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(2, stepper)">Save</button>
+            <button mat-button class="action-button cancel" (click)="cancelUpload()">Cancel</button>
+            <button mat-button class="action-button" (click)="onStepComplete(2, stepper)">Continue</button>
+          </div>
+
+          <!-- Final Contract Display -->
+          <div *ngIf="activeStepIndex === 2 && finalContract" class="uploaded-files-container">
+            <h3>Final Contract</h3>
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th>File Name</th>
+                  <th>Size</th>
+                  <th>Type</th>
+                  <th>Date Uploaded</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ finalContract.name }}</td>
+                  <td>{{ finalContract.size }}</td>
+                  <td>{{ finalContract.type }}</td>
+                  <td>{{ finalContract.date }}</td>
+                  <td>
+                    <button mat-button (click)="downloadFile(finalContract)">Download</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </form>
       </mat-step>
-  
-      <mat-step [editable]="stepCompleted[3] || stepper.selectedIndex === 3">
-        <ng-template matStepLabel>Release Invoice</ng-template>
-        <p>Invoice will be released upon final approval.</p>
-        <div class="button-group">
-          <button mat-button class="action-button" (click)="onStepComplete(3, stepper)">Next</button>
-          <button mat-button class="action-button" (click)="resetStep(3, stepper)">Reset</button>
-        </div>
-        <!-- Display completion time -->
-        <span class="completion-time" *ngIf="completionTimes[3]">
-          Completed: {{ completionTimes[3] }}
-        </span>
+
+      <!-- Step 4: Release Invoice -->
+      <mat-step [stepControl]="fourthFormGroup">
+        <form [formGroup]="fourthFormGroup">
+          <ng-template matStepLabel><span (click)="selectStep(3)">Release Invoice</span></ng-template>
+          <p>Upload invoices to release them upon final approval.</p>
+
+          <label class="upload-box">
+            <input type="file" (change)="onFileSelected($event, 3)" accept=".doc,.docx,.pdf">
+            <span class="upload-icon">+</span>
+            <p>Click to upload</p>
+          </label>
+
+          <div *ngIf="fileName && isUploading" class="file-info">
+            <button class="file-type">{{ getFileType(fileName) }}</button>
+            <button class="file-size">{{ fileSize }}</button>
+            <div class="file-progress">
+              <span>{{ fileName }}</span>
+              <span>{{ uploadProgress }}% Uploading • {{ fileSize }}</span>
+              <progress [value]="uploadProgress" max="100"></progress>
+            </div>
+          </div>
+
+          <div class="button-group">
+            <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(3, stepper)">Save</button>
+            <button mat-button class="action-button cancel" (click)="cancelUpload()">Cancel</button>
+            <button mat-button class="action-button" (click)="onStepComplete(3, stepper)">Continue</button>
+          </div>
+
+          <!-- Invoice Log Table -->
+          <div *ngIf="activeStepIndex === 3" class="uploaded-files-container">
+            <h3>Invoice Log</h3>
+            <div *ngIf="uploadedInvoiceFiles.length === 0">
+              <p>No invoices uploaded yet.</p>
+            </div>
+            <div *ngIf="uploadedInvoiceFiles.length > 0">
+              <div class="filter-container">
+                <input type="text" [(ngModel)]="invoiceSearchQuery" placeholder="Search by name or date..." (input)="filterInvoiceFiles()" />
+                <span class="sort-label">Sort</span>
+                <select [(ngModel)]="invoiceSortOrder" (change)="sortInvoiceFiles()">
+                  <option value="desc">Newest First</option>
+                  <option value="asc">Oldest First</option>
+                </select>
+              </div>
+
+              <table class="file-table">
+                <thead>
+                  <tr>
+                    <th>File Name</th>
+                    <th>Size</th>
+                    <th>Type</th>
+                    <th>Date Uploaded</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let file of filteredInvoiceFiles">
+                    <td>{{ file.name }}</td>
+                    <td>{{ file.size }}</td>
+                    <td>{{ file.type }}</td>
+                    <td>{{ file.date }}</td>
+                    <td>
+                      <button mat-button (click)="downloadFile(file)">Download</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </form>
       </mat-step>
-  
-      <mat-step [editable]="stepCompleted[4] || stepper.selectedIndex === 4">
-        <ng-template matStepLabel>Payment Received</ng-template>
-        <p>Payment has been received. Process completed.</p>
-        <div class="button-group">
-          <button mat-button class="action-button" (click)="onStepComplete(4, stepper)">Complete</button>
-          <button mat-button class="action-button" (click)="resetStep(4, stepper)">Reset</button>
-        </div>
-        <!-- Display completion time -->
-        <span class="completion-time" *ngIf="completionTimes[4]">
-          Completed: {{ completionTimes[4] }}
-        </span>
+
+      <!-- Step 5: Payment Received -->
+      <mat-step [stepControl]="fifthFormGroup">
+        <form [formGroup]="fifthFormGroup">
+          <ng-template matStepLabel><span (click)="selectStep(4)">Payment Received</span></ng-template>
+          <p>Payment has been received. Process completed.</p>
+          <div class="button-group">
+            <button mat-button (click)="onStepComplete(4, stepper)">Complete</button>
+          </div>
+        </form>
       </mat-step>
     </mat-horizontal-stepper>
   </div>

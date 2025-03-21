@@ -42,10 +42,10 @@ export class ContractAddComponent implements OnInit {
   icons = { cilPlus };
 
   // API URLs
-  private apiBaseUrl = 'https://e483-14-143-149-238.ngrok-free.app/';
+  private apiBaseUrl = 'https://add-list-new-client.onrender.com/';
   private addUserApi = `${this.apiBaseUrl}add_client`;
-  private createFolderApi = `${this.apiBaseUrl}create_folder`;
-  private uploadFileApi = `${this.apiBaseUrl}upload`;
+  private createFolderApi = `https://18f3-14-143-149-238.ngrok-free.app/create_folder`;
+  private uploadFileApi = `https://18f3-14-143-149-238.ngrok-free.app/upload_proposal/`;
   private getUsersApi = `${this.apiBaseUrl}get_all_clients`;
 
   users: User[] = [];
@@ -87,47 +87,58 @@ export class ContractAddComponent implements OnInit {
     this.uploadedFile = event.target.files[0] || null;
     console.log('File selected:', this.uploadedFile);
   }
+
   async uploadProposalFile(): Promise<string> {
     if (!this.uploadedFile) {
       console.warn('⚠️ No file selected for upload.');
       return '';
     }
-  
+
     const formData = new FormData();
-    formData.append('file', this.uploadedFile);  // 🔥 Ensure the key matches the backend
+    formData.append('file', this.uploadedFile);
     formData.append('username', this.newUser.name);
     formData.append('client_id', this.newUser.client_id);
-  
+
     console.log('📤 Uploading file to:', this.uploadFileApi);
     console.log('📂 File Name:', this.uploadedFile.name);
     console.log('🆔 Client ID:', this.newUser.client_id);
-  
+
     try {
       const response = await this.http.post<{ fileUrl: string }>(
         this.uploadFileApi, 
         formData,
         { 
-          headers: new HttpHeaders({
-            'ngrok-skip-browser-warning': "69420"  // ✅ Do NOT set 'Content-Type'
-          }),
+          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
           reportProgress: true,
           observe: 'response'
         }
       ).toPromise();
-  
+
       console.log('✅ Upload Response:', response);
-  
+
+    //   if (response?.status !== 200) {
+    //     throw new Error(`Upload failed with status: ${response?.status}`);
+    //   }
+
+    //   const fileUrl = response.body?.fileUrl;
+    //   if (!fileUrl) {
+    //     throw new Error('File URL not returned from the server');
+    //   }
+
+    //   return fileUrl;
+    // } catch (err: any) {
+    //   console.error('❌ File upload failed:', err);
+    //   alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
+    //   return '';
       if (response?.status !== 200) {
-        console.error('🚨 Upload failed! Server response:', response);
-        alert('⚠️ Upload failed! Check console for details.');
-        return '';
+        throw new Error(`Upload failed with status: ${response?.status}`);
       }
-  
+
       const fileUrl = response.body?.fileUrl;
       if (!fileUrl) {
-        throw new Error('🚨 File URL not returned from the server');
+        throw new Error('File URL not returned from the server');
       }
-  
+
       return fileUrl;
     } catch (err: any) {
       console.error('❌ File upload failed:', err);
@@ -135,54 +146,66 @@ export class ContractAddComponent implements OnInit {
       return '';
     }
   }
-  
-  
-  
-  
-  
+
   async addUser() {
-    if (!this.newUser.name || !this.newUser.client_id || !this.newUser.email) {
+    if (!this.isFormValid()) {
       alert('Please fill in all required fields.');
       return;
     }
 
     try {
+      // Step 1: Add client to backend
       console.log('Adding client:', this.newUser);
-      await this.http.post(this.addUserApi, this.newUser, {
+      const addResponse = await this.http.post(this.addUserApi, this.newUser, {
         headers: new HttpHeaders({ 'Content-Type': 'application/json;charset=UTF-8' }),
         observe: 'response'
       }).toPromise();
+
+      if (!addResponse || (addResponse.status !== 201 && addResponse.status !== 200)) {
+        throw new Error('Failed to add client');
+      }
       console.log('Client Added Successfully');
 
+      // Step 2: Create folder for client
       console.log('Creating folder for client:', this.newUser.name);
-      await this.http.post(this.createFolderApi, {
-        username: this.newUser.name,
-        client_id: this.newUser.client_id
-      }, {
-        headers: new HttpHeaders({ 'Content-Type': 'application/json' }),
+      const formData = new FormData();
+      formData.append('username', this.newUser.name);
+      formData.append('client_id', this.newUser.client_id);
+
+      const folderResponse = await this.http.post(this.createFolderApi, formData, {
+        headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
         observe: 'response'
       }).toPromise();
+
+      if (!folderResponse || (folderResponse.status !== 201 && folderResponse.status !== 200)) {
+        throw new Error('Failed to create folder');
+      }
       console.log('Folder Created Successfully');
 
+      // Step 3: Upload file if present
+      let fileUrl = '';
       if (this.uploadedFile) {
         console.log('Uploading file for:', this.newUser.name);
-        const fileUrl = await this.uploadProposalFile();
+        fileUrl = await this.uploadProposalFile();
         if (!fileUrl) {
-          console.error('File upload failed, stopping process.');
-          alert('File upload failed. Please try again.');
-          return;
+          throw new Error('File upload failed');
         }
         this.newUser.file = fileUrl;
       }
 
+      // Step 4: Update UI in real-time by adding new user to the top
       console.log('Updating UI with new client:', this.newUser);
-      this.users.unshift({ ...this.newUser });
+      this.users.unshift({ ...this.newUser }); // Adds to top of array
       this.resetForm();
       alert('New client added successfully!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error:', error);
-      alert('An error occurred while processing the request. Please try again.');
+      alert(`An error occurred: ${error.message || 'Please try again.'}`);
     }
+  }
+
+  isFormValid(): boolean {
+    return !!(this.newUser.name && this.newUser.client_id && this.newUser.email);
   }
 
   resetForm() {
