@@ -1,0 +1,60 @@
+<div class="container flex justify-center mt-8 px-4">
+    <div class="card w-full max-w-2xl p-8 bg-white shadow-lg rounded-xl border border-gray-200">
+      <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">
+        Questionnaire for <span class="text-blue-600">{{ clientId || 'Loading...' }}</span>
+      </h2>
+  
+      <!-- Loading Indicator -->
+      <div *ngIf="loading" class="text-center text-gray-500 mb-4">
+        Loading questions...
+      </div>
+  
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="text-red-600 text-center mb-4">
+        {{ errorMessage }}
+      </div>
+  
+      <!-- Form to Add Questions -->
+      <form (submit)="submitQuestions()" class="space-y-6 p-4 bg-gray-50 rounded-lg" *ngIf="!loading">
+        <div class="space-y-5">
+          <div *ngFor="let question of questions; let i = index" class="flex items-center space-x-3">
+            <mat-form-field appearance="outline" class="w-full">
+              <mat-label>Enter Question {{ i + 1 }}</mat-label>
+              <textarea matInput rows="3" [(ngModel)]="questions[i]" name="question-{{i}}" required></textarea>
+            </mat-form-field>
+            <button mat-button (click)="removeQuestion(i)" [disabled]="questions.length === 1"
+              class="delete-btn">X</button>
+          </div>
+        </div>
+  
+        <!-- Buttons Container -->
+        <div class="flex justify-between mt-6">
+          <button mat-raised-button type="button" (click)="addQuestion()" class="btn-action w-1/2 mr-3">
+            Add Question
+          </button>
+          <button mat-raised-button type="submit" class="btn-action w-1/2">
+            Submit Questions
+          </button>
+        </div>
+      </form>
+  
+      <hr class="my-6" />
+  
+      <!-- Display Submitted Questions -->
+      <h3 class="text-lg font-semibold text-gray-700 mb-4">Submitted Questions</h3>
+  
+      <div *ngIf="submittedQuestions.length > 0; else noQuestions">
+        <div *ngFor="let question of submittedQuestions"
+          class="p-4 bg-gray-100 rounded-md my-2 border-l-4 border-blue-500">
+          <p class="text-gray-800"><strong>Q:</strong> {{ question.text || question.question }}</p>
+          <p *ngIf="question.answer" class="text-green-600"><strong>A:</strong> {{ question.answer }}</p>
+          <p *ngIf="!question.answer" class="text-gray-500">Awaiting response...</p>
+        </div>
+      </div>
+  
+      <ng-template #noQuestions>
+        <p class="text-gray-400 text-center mt-2">No questions added yet.</p>
+      </ng-template>
+    </div>
+  </div>
+  

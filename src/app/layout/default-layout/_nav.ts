@@ -22,6 +22,12 @@ export const navItems: INavData[] = [
     url: '/tasks',
     iconComponent: { name: 'cil-task' } // Represents tasks or to-do items
   },
+
+  {
+    name: 'Questionnaire',
+    url: '/questionnaire',
+    iconComponent: { name: 'cil-pen' } // Represents analytics and insights
+  },
   
   {
     name: 'Documents',
@@ -40,6 +46,8 @@ export const navItems: INavData[] = [
     url: '/analytics/all',
     iconComponent: { name: 'cil-chart-pie' } // Represents analytics and insights
   }
+
+  
   
   // {
   //   name: 'Typography',

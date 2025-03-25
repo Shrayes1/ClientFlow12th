@@ -60,7 +60,9 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let user of users; let i = index">
+            <tr *ngFor="let user of users; let i = index" 
+                (click)="storeClientData(user)" 
+                style="cursor: pointer;">
               <td>{{ i + 1 }}</td>
               <td>{{ user.name }}</td>
               <td>{{ user.client_id }}</td>
@@ -71,6 +73,7 @@
               </td>
             </tr>
           </tbody>
+          
         </table>
 
         <!-- Message for No Clients -->

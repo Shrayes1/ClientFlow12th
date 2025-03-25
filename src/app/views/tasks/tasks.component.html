@@ -26,8 +26,9 @@
             <p>Click to upload</p>
           </label>
 
-          <div *ngIf="fileName && isUploading" class="file-info">
-            <button class="file-type">{{ getFileType(fileName) }}</button>
+          <!-- Upload Progress Display -->
+          <div *ngIf="isUploading" class="file-info">
+            <button class="file-type">{{ fileName ? getFileType(fileName) : '' }}</button>
             <button class="file-size">{{ fileSize }}</button>
             <div class="file-progress">
               <span>{{ fileName }}</span>
@@ -37,50 +38,60 @@
           </div>
 
           <div class="button-group">
-            <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(1, stepper)">Save</button>
-            <button mat-button class="action-button cancel" (click)="cancelUpload()">Cancel</button>
-            <button mat-button class="action-button" (click)="onStepComplete(1, stepper)">Continue</button>
+            <button mat-button class="action-button save" 
+                    [disabled]="uploadProgress < 100" 
+                    (click)="saveAndContinue(1, stepper)">Save</button>
+            <button mat-button class="action-button cancel" 
+                    [disabled]="!isUploading"
+                    (click)="cancelUpload()">Cancel</button>
+            <button mat-button class="action-button" 
+                    [disabled]="!secondFormGroup.valid"
+                    (click)="onStepComplete(1, stepper)">Continue</button>
           </div>
 
           <!-- Draft Contracts Table -->
-          <div *ngIf="activeStepIndex === 1" class="uploaded-files-container">
+          <div class="uploaded-files-container" *ngIf="uploadedDraftFiles.length > 0">
             <h3>Contract Draft Versions</h3>
-            <div *ngIf="uploadedDraftFiles.length === 0">
-              <p>No draft contracts uploaded yet.</p>
+            <div class="filter-container">
+              <input type="text" 
+                     [(ngModel)]="searchQuery" 
+                     [ngModelOptions]="{standalone: true}"
+                     placeholder="Search by name or date..." 
+                     (input)="filterFiles()" />
+              <span class="sort-label">Sort</span>
+              <select [(ngModel)]="sortOrder" 
+                      [ngModelOptions]="{standalone: true}"
+                      (change)="sortFiles()">
+                <option value="desc">Newest First</option>
+                <option value="asc">Oldest First</option>
+              </select>
             </div>
-            <div *ngIf="uploadedDraftFiles.length > 0">
-              <div class="filter-container">
-                <input type="text" [(ngModel)]="searchQuery" placeholder="Search by name or date..." (input)="filterFiles()" />
-                <span class="sort-label">Sort</span>
-                <select [(ngModel)]="sortOrder" (change)="sortFiles()">
-                  <option value="desc">Newest First</option>
-                  <option value="asc">Oldest First</option>
-                </select>
-              </div>
 
-              <table class="file-table">
-                <thead>
-                  <tr>
-                    <th>File Name</th>
-                    <th>Size</th>
-                    <th>Type</th>
-                    <th>Date Uploaded</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let file of filteredDraftFiles">
-                    <td>{{ file.name }}</td>
-                    <td>{{ file.size }}</td>
-                    <td>{{ file.type }}</td>
-                    <td>{{ file.date }}</td>
-                    <td>
-                      <button mat-button (click)="downloadFile(file)">Download</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th>File Name</th>
+                  <th>Size</th>
+                  <th>Type</th>
+                  <th>Date Uploaded</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let file of filteredDraftFiles">
+                  <td>{{ file.name }}</td>
+                  <td>{{ file.size }}</td>
+                  <td>{{ file.type }}</td>
+                  <td>{{ file.date }}</td>
+                  <td>
+                    <button mat-button (click)="downloadFile(file)">Download</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div *ngIf="uploadedDraftFiles.length === 0 && !isUploading" class="uploaded-files-container">
+            <p>No draft contracts uploaded yet.</p>
           </div>
         </form>
       </mat-step>
@@ -97,8 +108,9 @@
             <p>Click to upload</p>
           </label>
 
-          <div *ngIf="fileName && isUploading" class="file-info">
-            <button class="file-type">{{ getFileType(fileName) }}</button>
+          <!-- Upload Progress Display -->
+          <div *ngIf="isUploading" class="file-info">
+            <button class="file-type">{{ fileName ? getFileType(fileName) : '' }}</button>
             <button class="file-size">{{ fileSize }}</button>
             <div class="file-progress">
               <span>{{ fileName }}</span>
@@ -108,13 +120,19 @@
           </div>
 
           <div class="button-group">
-            <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(2, stepper)">Save</button>
-            <button mat-button class="action-button cancel" (click)="cancelUpload()">Cancel</button>
-            <button mat-button class="action-button" (click)="onStepComplete(2, stepper)">Continue</button>
+            <button mat-button class="action-button save" 
+                    [disabled]="uploadProgress < 100" 
+                    (click)="saveAndContinue(2, stepper)">Save</button>
+            <button mat-button class="action-button cancel" 
+                    [disabled]="!isUploading"
+                    (click)="cancelUpload()">Cancel</button>
+            <button mat-button class="action-button" 
+                    [disabled]="!thirdFormGroup.valid"
+                    (click)="onStepComplete(2, stepper)">Continue</button>
           </div>
 
           <!-- Final Contract Display -->
-          <div *ngIf="activeStepIndex === 2 && finalContract" class="uploaded-files-container">
+          <div class="uploaded-files-container" *ngIf="finalContract">
             <h3>Final Contract</h3>
             <table class="file-table">
               <thead>
@@ -139,6 +157,9 @@
               </tbody>
             </table>
           </div>
+          <div *ngIf="!finalContract && !isUploading" class="uploaded-files-container">
+            <p>No final contract uploaded yet.</p>
+          </div>
         </form>
       </mat-step>
 
@@ -148,14 +169,16 @@
           <ng-template matStepLabel><span (click)="selectStep(3)">Release Invoice</span></ng-template>
           <p>Upload invoices to release them upon final approval.</p>
 
+          <!-- File Upload Section -->
           <label class="upload-box">
             <input type="file" (change)="onFileSelected($event, 3)" accept=".doc,.docx,.pdf">
             <span class="upload-icon">+</span>
             <p>Click to upload</p>
           </label>
 
-          <div *ngIf="fileName && isUploading" class="file-info">
-            <button class="file-type">{{ getFileType(fileName) }}</button>
+          <!-- File Upload Progress -->
+          <div *ngIf="isUploading" class="file-info">
+            <button class="file-type">{{ fileName ? getFileType(fileName) : '' }}</button>
             <button class="file-size">{{ fileSize }}</button>
             <div class="file-progress">
               <span>{{ fileName }}</span>
@@ -164,51 +187,76 @@
             </div>
           </div>
 
+          <!-- Action Buttons -->
           <div class="button-group">
-            <button mat-button class="action-button save" [disabled]="uploadProgress < 100" (click)="saveAndContinue(3, stepper)">Save</button>
-            <button mat-button class="action-button cancel" (click)="cancelUpload()">Cancel</button>
-            <button mat-button class="action-button" (click)="onStepComplete(3, stepper)">Continue</button>
+            <button mat-button class="action-button save" 
+                    [disabled]="uploadProgress < 100" 
+                    (click)="saveAndContinue(3, stepper)">Save</button>
+            <button mat-button class="action-button cancel" 
+                    [disabled]="!isUploading"
+                    (click)="cancelUpload()">Cancel</button>
+            <button mat-button class="action-button" 
+                    [disabled]="!fourthFormGroup.valid"
+                    (click)="onStepComplete(3, stepper)">Continue</button>
           </div>
 
           <!-- Invoice Log Table -->
-          <div *ngIf="activeStepIndex === 3" class="uploaded-files-container">
+          <div class="uploaded-files-container" *ngIf="uploadedInvoiceFiles.length > 0">
             <h3>Invoice Log</h3>
-            <div *ngIf="uploadedInvoiceFiles.length === 0">
-              <p>No invoices uploaded yet.</p>
+            <div class="filter-container">
+              <input type="text" 
+                     [(ngModel)]="invoiceSearchQuery" 
+                     [ngModelOptions]="{standalone: true}"
+                     placeholder="Search by name or date..." 
+                     (input)="filterInvoiceFiles()" />
+              <span class="sort-label">Sort</span>
+              <select [(ngModel)]="invoiceSortOrder" 
+                      [ngModelOptions]="{standalone: true}"
+                      (change)="sortInvoiceFiles()">
+                <option value="desc">Newest First</option>
+                <option value="asc">Oldest First</option>
+              </select>
             </div>
-            <div *ngIf="uploadedInvoiceFiles.length > 0">
-              <div class="filter-container">
-                <input type="text" [(ngModel)]="invoiceSearchQuery" placeholder="Search by name or date..." (input)="filterInvoiceFiles()" />
-                <span class="sort-label">Sort</span>
-                <select [(ngModel)]="invoiceSortOrder" (change)="sortInvoiceFiles()">
-                  <option value="desc">Newest First</option>
-                  <option value="asc">Oldest First</option>
-                </select>
-              </div>
 
-              <table class="file-table">
-                <thead>
-                  <tr>
-                    <th>File Name</th>
-                    <th>Size</th>
-                    <th>Type</th>
-                    <th>Date Uploaded</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let file of filteredInvoiceFiles">
-                    <td>{{ file.name }}</td>
-                    <td>{{ file.size }}</td>
-                    <td>{{ file.type }}</td>
-                    <td>{{ file.date }}</td>
-                    <td>
-                      <button mat-button (click)="downloadFile(file)">Download</button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <table class="file-table">
+              <thead>
+                <tr>
+                  <th>Invoice</th>
+                  <th>Billing Date</th>
+                  <th>Status</th>
+                  <th>Amount ($)</th>
+                  <th>Plan</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let invoice of filteredInvoiceFiles; let i = index">
+                  <td>{{ invoice.name }}</td>
+                  <td>{{ invoice.date }}</td>
+                  <td><span class="status pending">{{ invoice.status }}</span></td>
+                  <td><input type="number" 
+                             [(ngModel)]="invoice.amount" 
+                             [ngModelOptions]="{standalone: true}"
+                             placeholder="Enter amount"
+                             (change)="saveTaskProgress()"></td>
+                  <td>
+                    <select [(ngModel)]="invoice.plan" 
+                            [ngModelOptions]="{standalone: true}"
+                            (change)="saveTaskProgress()">
+                      <option value="Basic">Basic</option>
+                      <option value="Premium">Premium</option>
+                      <option value="Enterprise">Enterprise</option>
+                    </select>
+                  </td>
+                  <td>
+                    <button mat-button (click)="downloadFile(invoice)">Download</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div *ngIf="uploadedInvoiceFiles.length === 0 && !isUploading" class="uploaded-files-container">
+            <p>No invoices uploaded yet.</p>
           </div>
         </form>
       </mat-step>

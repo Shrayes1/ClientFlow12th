@@ -155,3 +155,44 @@ progress::-webkit-progress-value {
   border-radius: 4px;
 }
 
+/* ✅ Invoice Table Styling */
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.invoice-table th, .invoice-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+}
+
+.invoice-table th {
+  background-color: #f4f4f4;
+}
+
+.status {
+  font-weight: bold;
+}
+
+.status.pending {
+  color: red;
+}
+
+/* ✅ Amount Input Styling */
+input[type="number"] {
+  width: 80px;
+  padding: 5px;
+  text-align: center;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+
+/* ✅ Plan Dropdown Styling */
+select {
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+}
+

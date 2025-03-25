@@ -32,8 +32,8 @@ export const routes: Routes = [
         loadChildren: () => import('./views/buttons/routes').then((m) => m.routes)
       },
       {
-        path: 'forms',
-        loadChildren: () => import('./views/forms/routes').then((m) => m.routes)
+        path: 'questionnaire',
+        loadChildren: () => import('./views/questionnaire/routes').then((m) => m.routes)
       },
       {
         path: 'icons',

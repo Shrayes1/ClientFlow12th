@@ -7,7 +7,7 @@ export const routes: Routes = [
     path: '',
     component: ContractAddComponent,
     data: {
-      title: 'contract-add'
+      title: 'Clients'
     }
   }
 ];

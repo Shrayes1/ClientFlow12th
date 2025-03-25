@@ -82,7 +82,7 @@ export class LoginComponent {
       next: (response) => {
         if (response.token) {
           localStorage.setItem('authToken', response.token); // ✅ Store JWT token
-          this.router.navigate(['/views/dashboard']); // ✅ Redirect to Dashboard
+          this.router.navigate(['/views/contract-add']); // ✅ Redirect to Dashboard
         } else {
           this.errorMessage = 'Invalid login credentials';
         }

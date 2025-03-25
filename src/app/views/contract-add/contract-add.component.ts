@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { cilPlus } from '@coreui/icons';
+import { Router } from '@angular/router';
 import { 
   GridModule,   
   CardModule,   
@@ -44,8 +45,8 @@ export class ContractAddComponent implements OnInit {
   // API URLs
   private apiBaseUrl = 'https://add-list-new-client.onrender.com/';
   private addUserApi = `${this.apiBaseUrl}add_client`;
-  private createFolderApi = `https://18f3-14-143-149-238.ngrok-free.app/create_folder`;
-  private uploadFileApi = `https://18f3-14-143-149-238.ngrok-free.app/upload_proposal/`;
+  private createFolderApi = `https://9aae-14-143-149-238.ngrok-free.app/create_folder`;
+  private uploadFileApi = `https://9aae-14-143-149-238.ngrok-free.app/upload_proposal/`;
   private getUsersApi = `${this.apiBaseUrl}get_all_clients`;
 
   users: User[] = [];
@@ -57,7 +58,7 @@ export class ContractAddComponent implements OnInit {
     file: ''
   };
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient,  private router: Router) {}
 
   ngOnInit(): void {
     this.fetchUsers();
@@ -90,8 +91,8 @@ export class ContractAddComponent implements OnInit {
 
   async uploadProposalFile(): Promise<string> {
     if (!this.uploadedFile) {
-      console.warn('⚠️ No file selected for upload.');
-      return '';
+        console.warn('⚠️ No file selected for upload.');
+        return '';
     }
 
     const formData = new FormData();
@@ -104,105 +105,93 @@ export class ContractAddComponent implements OnInit {
     console.log('🆔 Client ID:', this.newUser.client_id);
 
     try {
-      const response = await this.http.post<{ fileUrl: string }>(
-        this.uploadFileApi, 
-        formData,
-        { 
-          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
-          reportProgress: true,
-          observe: 'response'
+        const response = await this.http.post<{ fileUrl: string }>(
+            this.uploadFileApi,
+            formData,
+            {
+                headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
+                reportProgress: true,
+                observe: 'response'
+            }
+        ).toPromise();
+
+        if (response?.status !== 200) {
+            throw new Error(`❌ Upload failed with status: ${response?.status}`);
         }
-      ).toPromise();
 
-      console.log('✅ Upload Response:', response);
+        const fileUrl = response.body?.fileUrl;
+        if (!fileUrl) {
+            throw new Error('❌ File URL not returned from the server');
+        }
 
-    //   if (response?.status !== 200) {
-    //     throw new Error(`Upload failed with status: ${response?.status}`);
-    //   }
-
-    //   const fileUrl = response.body?.fileUrl;
-    //   if (!fileUrl) {
-    //     throw new Error('File URL not returned from the server');
-    //   }
-
-    //   return fileUrl;
-    // } catch (err: any) {
-    //   console.error('❌ File upload failed:', err);
-    //   alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
-    //   return '';
-      if (response?.status !== 200) {
-        throw new Error(`Upload failed with status: ${response?.status}`);
-      }
-
-      const fileUrl = response.body?.fileUrl;
-      if (!fileUrl) {
-        throw new Error('File URL not returned from the server');
-      }
-
-      return fileUrl;
+        console.log('✅ File uploaded successfully:', fileUrl);
+        return fileUrl;
     } catch (err: any) {
-      console.error('❌ File upload failed:', err);
-      alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
-      return '';
+        console.error('❌ File upload failed:', err);
+        alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
+        return '';
     }
-  }
+}
 
-  async addUser() {
-    if (!this.isFormValid()) {
+
+async addUser() {
+  if (!this.isFormValid()) {
       alert('Please fill in all required fields.');
       return;
-    }
+  }
 
-    try {
+  try {
       // Step 1: Add client to backend
       console.log('Adding client:', this.newUser);
       const addResponse = await this.http.post(this.addUserApi, this.newUser, {
-        headers: new HttpHeaders({ 'Content-Type': 'application/json;charset=UTF-8' }),
-        observe: 'response'
+          headers: new HttpHeaders({ 'Content-Type': 'application/json;charset=UTF-8' }),
+          observe: 'response'
       }).toPromise();
 
       if (!addResponse || (addResponse.status !== 201 && addResponse.status !== 200)) {
-        throw new Error('Failed to add client');
+          throw new Error('Failed to add client');
       }
-      console.log('Client Added Successfully');
+      console.log('✅ Client Added Successfully');
 
-      // Step 2: Create folder for client
-      console.log('Creating folder for client:', this.newUser.name);
+      // Step 2: Ensure the folder is created BEFORE uploading the file
+      console.log('📂 Creating folder for client:', this.newUser.name);
       const formData = new FormData();
       formData.append('username', this.newUser.name);
       formData.append('client_id', this.newUser.client_id);
 
       const folderResponse = await this.http.post(this.createFolderApi, formData, {
-        headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
-        observe: 'response'
+          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
+          observe: 'response'
       }).toPromise();
 
       if (!folderResponse || (folderResponse.status !== 201 && folderResponse.status !== 200)) {
-        throw new Error('Failed to create folder');
+          throw new Error('Failed to create folder');
       }
-      console.log('Folder Created Successfully');
+      console.log('✅ Folder Created Successfully');
 
-      // Step 3: Upload file if present
+      // Step 3: Upload file **AFTER** folder is created
       let fileUrl = '';
       if (this.uploadedFile) {
-        console.log('Uploading file for:', this.newUser.name);
-        fileUrl = await this.uploadProposalFile();
-        if (!fileUrl) {
-          throw new Error('File upload failed');
-        }
-        this.newUser.file = fileUrl;
+          console.log('📤 Uploading file for:', this.newUser.name);
+          fileUrl = await this.uploadProposalFile();
+          if (!fileUrl) {
+              throw new Error('File upload failed');
+          }
+          this.newUser.file = fileUrl;
       }
 
       // Step 4: Update UI in real-time by adding new user to the top
-      console.log('Updating UI with new client:', this.newUser);
+      console.log('✅ Updating UI with new client:', this.newUser);
       this.users.unshift({ ...this.newUser }); // Adds to top of array
       this.resetForm();
-      alert('New client added successfully!');
-    } catch (error: any) {
-      console.error('Error:', error);
-      alert(`An error occurred: ${error.message || 'Please try again.'}`);
-    }
+      alert('🎉 New client added successfully!');
+
+  } catch (error: any) {
+      console.error('❌ Error:', error);
+      alert(`⚠️ An error occurred: ${error.message || 'Please try again.'}`);
   }
+}
+
 
   isFormValid(): boolean {
     return !!(this.newUser.name && this.newUser.client_id && this.newUser.email);
@@ -218,6 +207,29 @@ export class ContractAddComponent implements OnInit {
     this.uploadedFile = null;
     this.showUserForm = false;
   }
+
+  storeClientData(user: any): void {
+    console.log('🔹 Storing client data and navigating:', user);
+  
+    // ✅ Store client details in sessionStorage
+    sessionStorage.setItem('selectedClient', JSON.stringify({
+      username: user.name,
+      client_id: user.client_id
+    }));
+  
+    // ✅ Retrieve & print stored values
+    const storedClient = JSON.parse(sessionStorage.getItem('selectedClient') || '{}');
+    console.log('✅ Stored Username:', storedClient.username);
+    console.log('✅ Stored Client ID:', storedClient.client_id);
+  
+    // ✅ Navigate to the tasks page
+    this.router.navigate(['/tasks']);
+  }
+  
+  
+  
+  
+  
 
   viewContract(user: User) {
     if (user.file) {
