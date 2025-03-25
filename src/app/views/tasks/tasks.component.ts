@@ -10,6 +10,8 @@ import { FormsModule } from '@angular/forms';
 import { MatStepper } from '@angular/material/stepper';
 import { ActivatedRoute } from '@angular/router';
 import { Router } from '@angular/router';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+
 interface UploadedFile {
   name: string;
   size: string;
@@ -19,6 +21,7 @@ interface UploadedFile {
   amount?: number;
   plan: string;
   status: string;
+  step?: number;
 }
 
 @Component({
@@ -39,6 +42,8 @@ interface UploadedFile {
 })
 export class TasksComponent implements OnInit, AfterViewInit {
   @ViewChild('stepper') stepper!: MatStepper;
+
+  private apiBaseUrl = 'https://a691-14-143-149-238.ngrok-free.app';
 
   isLinear = false;
   firstFormGroup: FormGroup;
@@ -62,89 +67,98 @@ export class TasksComponent implements OnInit, AfterViewInit {
   filteredInvoiceFiles: UploadedFile[] = [];
 
   searchQuery = '';
-  sortOrder = 'desc'; // Default: Newest First
+  sortOrder = 'desc';
   invoiceSearchQuery = '';
-  invoiceSortOrder = 'desc'; // Default: Newest First
+  invoiceSortOrder = 'desc';
 
   selectedClient: { username: string; client_id: string } = { username: '', client_id: '' };
+  clientId: string = ''; // ✅ Added clientId as a class property
 
-  constructor(private _formBuilder: FormBuilder, private cdr: ChangeDetectorRef,private route: ActivatedRoute,   private router: Router) {
+  completeTask(clientId: string) {
+    this.router.navigate(['/questionnaire'], { queryParams: { clientId: clientId } });
+  }
+
+  constructor(
+    private _formBuilder: FormBuilder,
+    private cdr: ChangeDetectorRef,
+    private route: ActivatedRoute,
+    private router: Router,
+    private http: HttpClient
+  ) {
     this.firstFormGroup = this._formBuilder.group({ clientAddition: [''] });
     this.secondFormGroup = this._formBuilder.group({ draftContract: [''] });
     this.thirdFormGroup = this._formBuilder.group({ finalContract: [''] });
     this.fourthFormGroup = this._formBuilder.group({ releaseInvoice: [''] });
     this.fifthFormGroup = this._formBuilder.group({ paymentReceived: [''] });
   }
+
   ngOnInit() {
     try {
-        // 🔹 Retrieve client_id & username from sessionStorage
-        const storedClient = sessionStorage.getItem('selectedClient');
+      const storedClient = sessionStorage.getItem('selectedClient');
 
-        if (storedClient) {
-            this.selectedClient = JSON.parse(storedClient);
+      this.route.queryParams.subscribe(params => {
+        this.clientId = params['clientId'] || 'default-client-id'; // ✅ Set clientId from query params or fallback
+      });
 
-            // ✅ Ensure selectedClient is valid before accessing properties
-            if (this.selectedClient?.client_id && this.selectedClient?.username) {
-                console.log(`📌 Loaded client from sessionStorage: ${this.selectedClient.username} (Client ID: ${this.selectedClient.client_id})`);
+      if (storedClient) {
+        this.selectedClient = JSON.parse(storedClient);
 
-                // ✅ Load task progress for this client
-                this.loadTaskProgress(this.selectedClient.client_id);
+        if (this.selectedClient?.client_id && this.selectedClient?.username) {
+          console.log(`📌 Loaded client from sessionStorage: ${this.selectedClient.username} (Client ID: ${this.selectedClient.client_id})`);
 
-                // ✅ Load user tasks from the backend
-                this.loadUserTasks(this.selectedClient.client_id, this.selectedClient.username);
+          // ✅ Use selectedClient.client_id if clientId isn’t set from query params
+          if (!this.clientId || this.clientId === 'default-client-id') {
+            this.clientId = this.selectedClient.client_id;
+          }
 
-                // ✅ Load files for this client
-                this.loadFilesForClient(this.selectedClient.client_id);
-            } else {
-                console.warn('⚠️ Client ID or Username is missing! Redirecting...');
-                this.router.navigate(['/contract-add']);
-                return;
-            }
+          this.loadTaskProgress(this.selectedClient.client_id);
+          this.loadUserTasks(this.selectedClient.client_id, this.selectedClient.username);
+          this.loadFilesForClient(this.selectedClient.client_id);
+          this.fetchContracts();
         } else {
-            console.warn('⚠️ No client found in sessionStorage! Redirecting to client selection...');
-            this.router.navigate(['/contract-add']);
-            return;
+          console.warn('⚠️ Client ID or Username is missing! Redirecting...');
+          this.router.navigate(['/contract-add']);
+          return;
         }
+      } else {
+        console.warn('⚠️ No client found in sessionStorage! Redirecting to client selection...');
+        this.router.navigate(['/contract-add']);
+        return;
+      }
 
-        // 🔹 Ensure files are properly loaded for the client
-        this.loadFilesForClient(this.selectedClient.client_id);
-        
+      this.loadFilesForClient(this.selectedClient.client_id);
+
     } catch (error) {
-        console.error('❌ Error loading client data:', error);
+      console.error('❌ Error loading client data:', error);
     }
 
-    // 🔹 Update UI
     this.sortFiles();
     this.filterFiles();
     this.sortInvoiceFiles();
     this.filterInvoiceFiles();
     this.cdr.detectChanges();
-}
+  }
 
-  
-  
-  
-  
-  
-  // ✅ Function to load user tasks
   loadUserTasks(clientId: string, username: string) {
     console.log(`📌 Fetching tasks for ${username} (Client ID: ${clientId})`);
 
-    fetch(`https://9aae-14-143-149-238.ngrok-free.app=${clientId}`)
-    .then(response => response.json())
-    .then(tasks => {
+    fetch(`https://a691-14-143-149-238.ngrok-free.app=${clientId}`)
+      .then(response => response.json())
+      .then(tasks => {
         console.log(`✅ Loaded tasks for ${username}:`, tasks);
-    })
-    .catch(error => console.error('❌ Error fetching user tasks:', error));
-}
-
-  
-  
+      })
+      .catch(error => console.error('❌ Error fetching user tasks:', error));
+  }
 
   ngAfterViewInit() {
     this.activeStepIndex = this.stepper.selectedIndex;
     this.refreshStepData();
     this.cdr.detectChanges();
+  }
+
+  onCompleteClick(step: number, stepper: any, client_id: string) {
+    this.onStepComplete(step, stepper);
+    this.router.navigate(['/questionnaire'], { queryParams: { clientId: this.selectedClient.client_id } }); // ✅ Use selectedClient.client_id
   }
 
   onStepComplete(stepIndex: number, stepper: MatStepper) {
@@ -153,41 +167,38 @@ export class TasksComponent implements OnInit, AfterViewInit {
     stepper.steps.toArray()[stepIndex].completed = true;
 
     if (stepIndex < stepper.steps.length - 1) {
-        stepper.next();
-        this.activeStepIndex = stepper.selectedIndex;
-        this.refreshStepData();
+      stepper.next();
+      this.activeStepIndex = stepper.selectedIndex;
+      this.refreshStepData();
     }
 
     this.saveTaskProgress();
     this.sendTaskProgressToBackend(stepIndex);
-}
-
-sendTaskProgressToBackend(stepIndex: number) {
-  if (!this.selectedClient) {
-      console.warn('⚠️ No selected client for progress update.');
-      return;
   }
 
-  const progressUpdate = {
+  sendTaskProgressToBackend(stepIndex: number) {
+    if (!this.selectedClient) {
+      console.warn('⚠️ No selected client for progress update.');
+      return;
+    }
+
+    const progressUpdate = {
       client_id: this.selectedClient.client_id,
       username: this.selectedClient.username,
       step: stepIndex,
       completed: this.stepCompleted[stepIndex],
       timestamp: this.completionTimes[stepIndex]
-  };
+    };
 
-  fetch('https://9aae-14-143-149-238.ngrok-free.app', {
+    fetch('https://a691-14-143-149-238.ngrok-free.app', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(progressUpdate)
-  })
-  .then(response => response.json())
-  .then(data => console.log(`✅ Task progress updated for step ${stepIndex}:`, data))
-  .catch(error => console.error('❌ Error updating task progress:', error));
-}
-
-  
-  
+    })
+      .then(response => response.json())
+      .then(data => console.log(`✅ Task progress updated for step ${stepIndex}:`, data))
+      .catch(error => console.error('❌ Error updating task progress:', error));
+  }
 
   resetStep(stepIndex: number, stepper: MatStepper) {
     this.stepCompleted[stepIndex] = false;
@@ -201,56 +212,50 @@ sendTaskProgressToBackend(stepIndex: number) {
 
   loadTaskProgress(clientId: string) {
     try {
-        const progressKey = `taskProgress_${clientId}`;
-        const storedProgress = localStorage.getItem(progressKey);
+      const progressKey = `taskProgress_${clientId}`;
+      const storedProgress = localStorage.getItem(progressKey);
 
-        if (storedProgress) {
-            const parsedProgress = JSON.parse(storedProgress);
-            this.stepCompleted = parsedProgress.stepCompleted?.length ? parsedProgress.stepCompleted : [false, false, false, false, false];
-            this.completionTimes = parsedProgress.completionTimes?.length ? parsedProgress.completionTimes : [null, null, null, null, null];
+      if (storedProgress) {
+        const parsedProgress = JSON.parse(storedProgress);
+        this.stepCompleted = parsedProgress.stepCompleted?.length ? parsedProgress.stepCompleted : [false, false, false, false, false];
+        this.completionTimes = parsedProgress.completionTimes?.length ? parsedProgress.completionTimes : [null, null, null, null, null];
 
-            this.uploadedDraftFiles = parsedProgress.draftFiles || [];
-            this.finalContract = parsedProgress.finalContract || null;
-            this.uploadedInvoiceFiles = parsedProgress.invoiceFiles || [];
+        this.uploadedDraftFiles = parsedProgress.draftFiles || [];
+        this.finalContract = parsedProgress.finalContract || null;
+        this.uploadedInvoiceFiles = parsedProgress.invoiceFiles || [];
 
-            console.log(`✅ Loaded progress for Client ID: ${clientId}`, parsedProgress);
-        } else {
-            console.log(`ℹ️ No saved progress for Client ID: ${clientId}, starting fresh.`);
-            this.stepCompleted = [false, false, false, false, false];
-            this.completionTimes = [null, null, null, null, null];
-            this.uploadedDraftFiles = [];
-            this.finalContract = null;
-            this.uploadedInvoiceFiles = [];
-        }
+        console.log(`✅ Loaded progress for Client ID: ${clientId}`, parsedProgress);
+      } else {
+        console.log(`ℹ️ No saved progress for Client ID: ${clientId}, starting fresh.`);
+        this.stepCompleted = [false, false, false, false, false];
+        this.completionTimes = [null, null, null, null, null];
+        this.uploadedDraftFiles = [];
+        this.finalContract = null;
+        this.uploadedInvoiceFiles = [];
+      }
 
-        this.cdr.detectChanges();
+      this.cdr.detectChanges();
     } catch (error) {
-        console.error('❌ Error loading task progress:', error);
+      console.error('❌ Error loading task progress:', error);
     }
-}
-
-  
-  
-  
-  
+  }
 
   onFileSelected(event: Event, stepIndex: number) {
     const fileInput = event.target as HTMLInputElement;
     if (fileInput.files && fileInput.files.length > 0) {
       const file = fileInput.files[0];
       const allowedTypes = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/pdf'];
-
+  
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file type. Only .doc, .docx, and .pdf are allowed.');
         return;
       }
-
+  
       this.fileName = file.name;
       this.fileSize = (file.size / 1024).toFixed(2) + ' KB';
       this.uploadProgress = 0;
       this.isUploading = true;
-
-      // Save file details for tracking per user
+  
       if (this.selectedClient) {
         localStorage.setItem(`uploadedFile_${this.selectedClient.client_id}_${stepIndex}`, JSON.stringify({ 
           name: this.fileName, 
@@ -258,45 +263,57 @@ sendTaskProgressToBackend(stepIndex: number) {
           date: new Date().toLocaleString()
         }));
       }
-
-      this.simulateUpload(file, stepIndex);
+  
+      if (stepIndex === 2) {
+        this.uploadFinalContractToBackend(file); // ✅ Changed to use the new function for Step 2
+      } else if (stepIndex === 3) {
+        this.uploadInvoice(file); // ✅ Kept for Step 4: Release Invoice
+      } else {
+        this.uploadContractToBackend(file, stepIndex);
+      }
+  
       fileInput.value = '';
     }
-}
+  }
 
-// In simulateUpload method - fixed to handle both draft and invoice files correctly
-simulateUpload(file: File, stepIndex: number) {
-  try {
-    const fileUrl = URL.createObjectURL(file);
+  uploadContractToBackend(file: File, stepIndex: number) {
+    if (!this.selectedClient) {
+      console.error('❌ No selected client for file upload.');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('client_id', this.selectedClient.client_id);
+    formData.append('username', this.selectedClient.username);
+
     this.uploadProgress = 0;
     this.isUploading = true;
 
-    const interval = setInterval(() => {
-      if (this.uploadProgress < 100) {
-        this.uploadProgress += 10;
-      } else {
-        clearInterval(interval);
+    this.http.post(`${this.apiBaseUrl}/upload-contract`, formData).subscribe(
+      (response: any) => {
         this.isUploading = false;
+        this.uploadProgress = 100;
 
         const uploadedFile: UploadedFile = {
           name: file.name,
-          size: this.fileSize!,
+          size: (file.size / 1024).toFixed(2) + ' KB',
           type: this.getFileType(file.name),
           date: new Date().toLocaleString(),
-          url: fileUrl,
+          url: response.url || URL.createObjectURL(file),
           status: 'Pending',
           amount: 0,
-          plan: 'Basic'
+          plan: 'Basic',
+          step: stepIndex
         };
 
-        // Handle different steps appropriately
-        if (stepIndex === 1) {  // Draft contracts
+        if (stepIndex === 1) {
           this.uploadedDraftFiles.unshift(uploadedFile);
           this.sortFiles();
           this.filterFiles();
-        } else if (stepIndex === 2) {  // Final contract
+        } else if (stepIndex === 2) {
           this.finalContract = uploadedFile;
-        } else if (stepIndex === 3) {  // Invoices
+        } else if (stepIndex === 3) {
           let latestInvoiceNumber = 1;
           if (this.uploadedInvoiceFiles.length > 0) {
             const invoiceNumbers = this.uploadedInvoiceFiles.map(file => {
@@ -312,15 +329,118 @@ simulateUpload(file: File, stepIndex: number) {
         }
 
         this.cdr.detectChanges();
+        console.log(`✅ File uploaded to backend: ${file.name}`);
+      },
+      error => {
+        console.error('❌ Error uploading file to backend:', error);
+        this.isUploading = false;
+        this.uploadProgress = 0;
+      }
+    );
+
+    const interval = setInterval(() => {
+      if (this.uploadProgress < 90) {
+        this.uploadProgress += 10;
+      } else {
+        clearInterval(interval);
       }
     }, 500);
-  } catch (error) {
-    console.error('❌ Upload simulation failed:', error);
-    this.isUploading = false;
   }
-}
 
+  fetchContracts(): void {
+    console.log('Fetching contracts from:', `${this.apiBaseUrl}/list-contract/${this.selectedClient.username}/${this.selectedClient.client_id}`);
+    this.http.get<any>(`${this.apiBaseUrl}/list-contract/${this.selectedClient.username}/${this.selectedClient.client_id}`, {
+        headers: new HttpHeaders({ 'Accept': 'application/json', 'ngrok-skip-browser-warning': "69420" })
+    }).subscribe({
+        next: (response) => {
+            const contracts = response.contracts || response || [];
+            console.log('Fetched Contracts:', contracts);
 
+            const mappedContracts: UploadedFile[] = contracts.map((contract: any) => ({
+                name: contract.name,
+                size: contract.size || 'Unknown',
+                type: this.getFileType(contract.name),
+                date: contract.date || new Date().toLocaleString(),
+                url: contract.url || '',
+                status: contract.status || 'Pending',
+                amount: contract.amount || 0,
+                plan: contract.plan || 'Basic',
+                step: contract.step || undefined
+            }));
+
+            this.finalContract = mappedContracts.find(c => c.step === 2) || null;
+            this.uploadedDraftFiles = mappedContracts.filter(c => c.step === 1 || c.step === undefined);
+            this.uploadedInvoiceFiles = mappedContracts.filter(c => c.step === 3);
+            this.filteredDraftFiles = [...this.uploadedDraftFiles];
+            this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles];
+
+            this.sortFiles();
+            this.filterFiles();
+            this.sortInvoiceFiles();
+            this.filterInvoiceFiles();
+
+            this.cdr.detectChanges();
+        },
+        error: (error) => {
+            console.error('Error fetching contracts:', error);
+            alert(`Failed to fetch contracts: ${error.statusText || error.message}`);
+        }
+    });
+  }
+
+  simulateUpload(file: File, stepIndex: number) {
+    try {
+      const fileUrl = URL.createObjectURL(file);
+      this.uploadProgress = 0;
+      this.isUploading = true;
+
+      const interval = setInterval(() => {
+        if (this.uploadProgress < 100) {
+          this.uploadProgress += 10;
+        } else {
+          clearInterval(interval);
+          this.isUploading = false;
+
+          const uploadedFile: UploadedFile = {
+            name: file.name,
+            size: this.fileSize!,
+            type: this.getFileType(file.name),
+            date: new Date().toLocaleString(),
+            url: fileUrl,
+            status: 'Pending',
+            amount: 0,
+            plan: 'Basic'
+          };
+
+          if (stepIndex === 1) {
+            this.uploadedDraftFiles.unshift(uploadedFile);
+            this.sortFiles();
+            this.filterFiles();
+          } else if (stepIndex === 2) {
+            this.finalContract = uploadedFile;
+          } else if (stepIndex === 3) {
+            let latestInvoiceNumber = 1;
+            if (this.uploadedInvoiceFiles.length > 0) {
+              const invoiceNumbers = this.uploadedInvoiceFiles.map(file => {
+                const match = file.name.match(/Invoice#(\d+)/);
+                return match ? parseInt(match[1], 10) : 0;
+              });
+              latestInvoiceNumber = Math.max(...invoiceNumbers) + 1;
+            }
+            uploadedFile.name = `Invoice#${latestInvoiceNumber}`;
+            this.uploadedInvoiceFiles.unshift(uploadedFile);
+            this.sortInvoiceFiles();
+            this.filterInvoiceFiles();
+          }
+
+          this.cdr.detectChanges();
+        }
+      }, 500);
+    } catch (error) {
+      console.error('❌ Upload simulation failed:', error);
+      this.isUploading = false;
+    }
+  }
 
   cancelUpload() {
     this.uploadProgress = 0;
@@ -341,13 +461,13 @@ simulateUpload(file: File, stepIndex: number) {
           localStorage.setItem(`uploadedDraftFiles_${clientId}`, JSON.stringify(this.uploadedDraftFiles));
         } else if (stepIndex === 2) {
           localStorage.setItem(`finalContract_${clientId}`, JSON.stringify(this.finalContract));
-          this.cdr.detectChanges();  // Force update to show final contract
+          this.cdr.detectChanges();
         } else if (stepIndex === 3) {
           localStorage.setItem(`uploadedInvoiceFiles_${clientId}`, JSON.stringify(this.uploadedInvoiceFiles));
         }
   
         this.saveTaskProgress();
-        this.onStepComplete(stepIndex, stepper);  // Progress to next step
+        this.onStepComplete(stepIndex, stepper);
       }
     } else {
       alert('File is still uploading...');
@@ -358,7 +478,6 @@ simulateUpload(file: File, stepIndex: number) {
     return fileName.split('.').pop()?.toUpperCase() || 'UNKNOWN';
   }
 
-  // Draft Files (Stage 2)
   sortFiles() {
     console.log('sortFiles triggered with sortOrder:', this.sortOrder);
     if (!this.uploadedDraftFiles || this.uploadedDraftFiles.length === 0) {
@@ -393,7 +512,7 @@ simulateUpload(file: File, stepIndex: number) {
 
     const query = this.searchQuery.toLowerCase().trim();
     if (query === '') {
-      this.filteredDraftFiles = [...this.uploadedDraftFiles]; // Show all files if query is empty
+      this.filteredDraftFiles = [...this.uploadedDraftFiles];
     } else {
       this.filteredDraftFiles = this.uploadedDraftFiles.filter(file => {
         const nameMatch = file.name.toLowerCase().includes(query);
@@ -408,55 +527,235 @@ simulateUpload(file: File, stepIndex: number) {
     console.log('Filtered draft files:', this.filteredDraftFiles);
   }
 
-  // Invoice Files (Stage 4)
+  async uploadFinalContract(file: File): Promise<string> {
+    if (!file) {
+        console.warn('⚠️ No file selected for upload.');
+        return '';
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('client_id', this.selectedClient.client_id);
+    formData.append('step', '2');
+
+    console.log('📤 Uploading final contract to:', `${this.apiBaseUrl}/upload-contract`);
+    console.log('📂 File Name:', file.name);
+    console.log('🆔 Client ID:', this.selectedClient.client_id);
+
+    try {
+        const response = await this.http.post<{ message: string; filename: string }>(
+            `${this.apiBaseUrl}/upload-contract`,
+            formData,
+            {
+                headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
+                reportProgress: true,
+                observe: 'response'
+            }
+        ).toPromise();
+
+        if (response?.status !== 200) {
+            throw new Error(`❌ Upload failed with status: ${response?.status}`);
+        }
+
+        const responseBody = response.body;
+        if (responseBody?.message && responseBody?.filename) {
+            console.log('✅ Final contract uploaded successfully:', responseBody.filename);
+            alert(`🎉 Success!\n${responseBody.message}`);
+
+            this.finalContract = {
+                name: responseBody.filename,
+                size: (file.size / 1024).toFixed(2) + ' KB',
+                type: this.getFileType(file.name),
+                date: new Date().toLocaleString(),
+                url: URL.createObjectURL(file),
+                status: 'Pending',
+                amount: 0,
+                plan: 'Basic',
+                step: 2
+            };
+            this.cdr.detectChanges();
+
+            this.fetchContracts();
+
+            return responseBody.filename;
+        } else {
+            throw new Error('❌ Unexpected response format from the server');
+        }
+    } catch (err: any) {
+        console.error('❌ Final contract upload failed:', err);
+        alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
+        return '';
+    }
+  }
+
+  async uploadFinalContractToBackend(file: File): Promise<string> {
+    if (!file) {
+      console.warn('⚠️ No file selected for upload.');
+      return '';
+    }
+  
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('client_id', this.selectedClient.client_id);
+  
+    console.log('📤 Uploading final contract to:', `${this.apiBaseUrl}/upload-final-contract`);
+    console.log('📂 File Name:', file.name);
+    console.log('🆔 Client ID:', this.selectedClient.client_id);
+  
+    try {
+      const response = await this.http.post<{ message: string; filename: string }>(
+        `${this.apiBaseUrl}/upload-final-contract`,
+        formData,
+        {
+          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
+          reportProgress: true,
+          observe: 'response'
+        }
+      ).toPromise();
+  
+      if (response?.status !== 200) {
+        throw new Error(`❌ Upload failed with status: ${response?.status}`);
+      }
+  
+      const responseBody = response.body;
+      if (responseBody?.message && responseBody?.filename) {
+        console.log('✅ Final contract uploaded successfully:', responseBody.filename);
+        alert(`🎉 Success!\n${responseBody.message}`);
+  
+        this.finalContract = {
+          name: responseBody.filename,
+          size: (file.size / 1024).toFixed(2) + ' KB',
+          type: this.getFileType(file.name),
+          date: new Date().toLocaleString(),
+          url: URL.createObjectURL(file),
+          status: 'Pending',
+          amount: 0,
+          plan: 'Basic',
+          step: 2
+        };
+        this.cdr.detectChanges();
+  
+        this.fetchContracts();
+  
+        return responseBody.filename;
+      } else {
+        throw new Error('❌ Unexpected response format from the server');
+      }
+    } catch (err: any) {
+      console.error('❌ Final contract upload failed:', err);
+      alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
+      return '';
+    }
+  }
+
+  async uploadInvoice(file: File): Promise<string> {
+    if (!file) {
+      console.warn('⚠️ No file selected for upload.');
+      return '';
+    }
+  
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('client_id', this.selectedClient.client_id);
+    formData.append('username', this.selectedClient.username);
+    formData.append('invoice_id', `Invoice#${Date.now()}`); // Unique invoice ID based on timestamp
+  
+    console.log('📤 Uploading invoice to:', `${this.apiBaseUrl}/upload-bill`);
+    console.log('📂 File Name:', file.name);
+    console.log('🆔 Client ID:', this.selectedClient.client_id);
+  
+    try {
+      const response = await this.http.post<{ message: string; filename: string }>(
+        `${this.apiBaseUrl}/upload-bill`,
+        formData,
+        {
+          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
+          reportProgress: true,
+          observe: 'response'
+        }
+      ).toPromise();
+  
+      if (response?.status !== 200) {
+        throw new Error(`❌ Upload failed with status: ${response?.status}`);
+      }
+  
+      const responseBody = response.body;
+      if (responseBody?.message && responseBody?.filename) {
+        console.log('✅ Invoice uploaded successfully:', responseBody.filename);
+        alert(`🎉 Success!\n${responseBody.message}`);
+  
+        const uploadedFile: UploadedFile = {
+          name: responseBody.filename,
+          size: (file.size / 1024).toFixed(2) + ' KB',
+          type: this.getFileType(file.name),
+          date: new Date().toLocaleString(),
+          url: URL.createObjectURL(file),
+          status: 'Pending',
+          amount: 0,
+          plan: 'Basic',
+          step: 3
+        };
+        this.uploadedInvoiceFiles.unshift(uploadedFile);
+        this.sortInvoiceFiles();
+        this.filterInvoiceFiles();
+        this.cdr.detectChanges();
+  
+        this.fetchContracts(); // Refresh the contract list
+  
+        return responseBody.filename;
+      } else {
+        throw new Error('❌ Unexpected response format from the server');
+      }
+    } catch (err: any) {
+      console.error('❌ Invoice upload failed:', err);
+      alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
+      return '';
+    }
+  }
+
   sortInvoiceFiles() {
     console.log('🔄 Sorting invoices...');
 
     if (!this.uploadedInvoiceFiles || this.uploadedInvoiceFiles.length === 0) {
-        this.uploadedInvoiceFiles = [];
-        this.filteredInvoiceFiles = [];
-        return;
+      this.uploadedInvoiceFiles = [];
+      this.filteredInvoiceFiles = [];
+      return;
     }
 
-    // 🔹 Step 1: Sort invoices by date in DESCENDING ORDER (latest first)
     this.uploadedInvoiceFiles.sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
 
-        if (isNaN(dateA) || isNaN(dateB)) {
-            console.warn('Invalid date format detected:', a.date, b.date);
-            return 0;
-        }
+      if (isNaN(dateA) || isNaN(dateB)) {
+        console.warn('Invalid date format detected:', a.date, b.date);
+        return 0;
+      }
 
-        return dateB - dateA; // Newest invoices first
+      return dateB - dateA;
     });
 
-    // 🔹 Step 2: Assign invoice numbers in descending order
     this.uploadedInvoiceFiles.forEach((file, index) => {
-        file.name = `Invoice#${this.uploadedInvoiceFiles.length - index}`;
+      file.name = `Invoice#${this.uploadedInvoiceFiles.length - index}`;
     });
 
-    this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles]; // Update filtered list
+    this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles];
 
     this.cdr.markForCheck();
     this.cdr.detectChanges();
     console.log('✅ Sorted and numbered invoice files:', this.filteredInvoiceFiles);
-}
+  }
 
-sortInvoicesByDateAndAssignNumbers() {
-  // 🔹 Step 1: Sort invoices by date in DESCENDING ORDER (latest first)
-  this.uploadedInvoiceFiles.sort((a, b) => {
+  sortInvoicesByDateAndAssignNumbers() {
+    this.uploadedInvoiceFiles.sort((a, b) => {
       return new Date(b.date).getTime() - new Date(a.date).getTime();
-  });
+    });
 
-  // 🔹 Step 2: Assign invoice numbers (latest invoice gets the highest number)
-  this.uploadedInvoiceFiles.forEach((file, index) => {
-      file.name = `Invoice#${this.uploadedInvoiceFiles.length - index}`; // Highest number first
-  });
+    this.uploadedInvoiceFiles.forEach((file, index) => {
+      file.name = `Invoice#${this.uploadedInvoiceFiles.length - index}`;
+    });
 
-  console.log("✅ Invoices sorted and numbered:", this.uploadedInvoiceFiles);
-}
-
+    console.log("✅ Invoices sorted and numbered:", this.uploadedInvoiceFiles);
+  }
 
   filterInvoiceFiles() {
     console.log('filterInvoiceFiles triggered with invoiceSearchQuery:', this.invoiceSearchQuery);
@@ -467,7 +766,7 @@ sortInvoicesByDateAndAssignNumbers() {
 
     const query = this.invoiceSearchQuery.toLowerCase().trim();
     if (query === '') {
-      this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles]; // Show all files if query is empty
+      this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles];
     } else {
       this.filteredInvoiceFiles = this.uploadedInvoiceFiles.filter(file => {
         const nameMatch = file.name.toLowerCase().includes(query);
@@ -484,33 +783,27 @@ sortInvoicesByDateAndAssignNumbers() {
 
   loadFilesForClient(clientId: string) {
     try {
-        console.log(`📂 Loading files for Client ID: ${clientId}`);
+      console.log(`📂 Loading files for Client ID: ${clientId}`);
 
-        // ✅ Load Draft Files
-        const storedDraftFiles = localStorage.getItem(`uploadedDraftFiles_${clientId}`);
-        this.uploadedDraftFiles = storedDraftFiles ? JSON.parse(storedDraftFiles) : [];
-        this.filteredDraftFiles = [...this.uploadedDraftFiles];
+      const storedDraftFiles = localStorage.getItem(`uploadedDraftFiles_${clientId}`);
+      this.uploadedDraftFiles = storedDraftFiles ? JSON.parse(storedDraftFiles) : [];
+      this.filteredDraftFiles = [...this.uploadedDraftFiles];
 
-        // ✅ Load Final Contract
-        const storedFinalContract = localStorage.getItem(`finalContract_${clientId}`);
-        this.finalContract = storedFinalContract ? JSON.parse(storedFinalContract) : null;
+      const storedFinalContract = localStorage.getItem(`finalContract_${clientId}`);
+      this.finalContract = storedFinalContract ? JSON.parse(storedFinalContract) : null;
 
-        // ✅ Load Invoice Files
-        const storedInvoiceFiles = localStorage.getItem(`uploadedInvoiceFiles_${clientId}`);
-        this.uploadedInvoiceFiles = storedInvoiceFiles ? JSON.parse(storedInvoiceFiles) : [];
-        this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles];
+      const storedInvoiceFiles = localStorage.getItem(`uploadedInvoiceFiles_${clientId}`);
+      this.uploadedInvoiceFiles = storedInvoiceFiles ? JSON.parse(storedInvoiceFiles) : [];
+      this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles];
 
-        // 🔹 Ensure invoice sorting and numbering is updated properly
-        this.sortInvoiceFiles();
+      this.sortInvoiceFiles();
 
-        console.log(`✅ Successfully loaded files for Client ID: ${clientId}`);
-        this.cdr.detectChanges();
+      console.log(`✅ Successfully loaded files for Client ID: ${clientId}`);
+      this.cdr.detectChanges();
     } catch (error) {
-        console.error('❌ Error loading files for Client ID:', clientId, error);
+      console.error('❌ Error loading files for Client ID:', clientId, error);
     }
-}
-
-
+  }
 
   downloadFile(file: UploadedFile) {
     const link = document.createElement('a');
@@ -520,7 +813,6 @@ sortInvoicesByDateAndAssignNumbers() {
     link.click();
     document.body.removeChild(link);
 
-    // Track file downloads per user
     if (this.selectedClient) {
       const clientId = this.selectedClient.client_id;
       let downloadHistory = JSON.parse(localStorage.getItem(`downloadHistory_${clientId}`) || '[]');
@@ -551,18 +843,16 @@ sortInvoicesByDateAndAssignNumbers() {
       if (this.selectedClient) {
         const progressKey = `taskProgress_${this.selectedClient.client_id}`;
         const progressData = {
-          stepCompleted: [...this.stepCompleted],  // Save current step progress
-          completionTimes: [...this.completionTimes], // Save completion timestamps
-          draftFiles: [...this.uploadedDraftFiles],  // Save uploaded draft files
-          finalContract: this.finalContract,  // Save final contract
-          invoiceFiles: [...this.uploadedInvoiceFiles]  // Save uploaded invoices
+          stepCompleted: [...this.stepCompleted],
+          completionTimes: [...this.completionTimes],
+          draftFiles: [...this.uploadedDraftFiles],
+          finalContract: this.finalContract,
+          invoiceFiles: [...this.uploadedInvoiceFiles]
         };
   
-        // ✅ Store per user
         localStorage.setItem(progressKey, JSON.stringify(progressData));
         console.log(`✅ Saved progress for Client ID: ${this.selectedClient.client_id}`, progressData);
   
-        // 🔹 Force UI update
         this.cdr.detectChanges();
       } else {
         console.warn('⚠️ No selected client to save progress for.');
@@ -571,10 +861,6 @@ sortInvoicesByDateAndAssignNumbers() {
       console.error('❌ Error saving task progress:', error);
     }
   }
-  
-  
-  
-  
 
   refreshStepData() {
     console.log('Refreshing step data for index:', this.activeStepIndex);

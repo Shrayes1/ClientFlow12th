@@ -264,13 +264,16 @@
       <!-- Step 5: Payment Received -->
       <mat-step [stepControl]="fifthFormGroup">
         <form [formGroup]="fifthFormGroup">
-          <ng-template matStepLabel><span (click)="selectStep(4)">Payment Received</span></ng-template>
+          <ng-template matStepLabel>
+            <span (click)="selectStep(4)">Payment Received</span>
+          </ng-template>
           <p>Payment has been received. Process completed.</p>
           <div class="button-group">
-            <button mat-button (click)="onStepComplete(4, stepper)">Complete</button>
+            <button mat-button (click)="onCompleteClick(4, stepper, selectedClient.client_id)">Complete</button>
           </div>
         </form>
       </mat-step>
+      
     </mat-horizontal-stepper>
   </div>
 </div>

@@ -45,8 +45,8 @@ export class ContractAddComponent implements OnInit {
   // API URLs
   private apiBaseUrl = 'https://add-list-new-client.onrender.com/';
   private addUserApi = `${this.apiBaseUrl}add_client`;
-  private createFolderApi = `https://9aae-14-143-149-238.ngrok-free.app/create_folder`;
-  private uploadFileApi = `https://9aae-14-143-149-238.ngrok-free.app/upload_proposal/`;
+  private createFolderApi = `https://a691-14-143-149-238.ngrok-free.app/create_folder`;
+  private uploadFileApi = `https://a691-14-143-149-238.ngrok-free.app/upload_proposal/`;
   private getUsersApi = `${this.apiBaseUrl}get_all_clients`;
 
   users: User[] = [];
@@ -105,7 +105,7 @@ export class ContractAddComponent implements OnInit {
     console.log('🆔 Client ID:', this.newUser.client_id);
 
     try {
-        const response = await this.http.post<{ fileUrl: string }>(
+        const response = await this.http.post<{ message: string; filename: string }>(
             this.uploadFileApi,
             formData,
             {
@@ -119,13 +119,15 @@ export class ContractAddComponent implements OnInit {
             throw new Error(`❌ Upload failed with status: ${response?.status}`);
         }
 
-        const fileUrl = response.body?.fileUrl;
-        if (!fileUrl) {
-            throw new Error('❌ File URL not returned from the server');
+        const responseBody = response.body;
+        if (responseBody?.message && responseBody?.filename) {
+            console.log('✅ File uploaded successfully:', responseBody.filename);
+            alert(`🎉 Success!\n${responseBody.message}`);
+            return responseBody.filename;
+        } else {
+            throw new Error('❌ Unexpected response format from the server');
         }
 
-        console.log('✅ File uploaded successfully:', fileUrl);
-        return fileUrl;
     } catch (err: any) {
         console.error('❌ File upload failed:', err);
         alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);

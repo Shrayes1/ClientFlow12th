@@ -20,7 +20,7 @@ export interface TaskInvoiceData {
   providedIn: 'root'
 })
 export class TasksService {
-  private apiBaseUrl = 'https://9aae-14-143-149-238.ngrok-free.app';  // 🔹 Change to your API URL
+  private apiBaseUrl = 'https://a691-14-143-149-238.ngrok-free.app';  // 🔹 Change to your API URL
 
   constructor(private http: HttpClient) {}
 
@@ -36,6 +36,13 @@ export class TasksService {
 
   // ✅ API to save invoice (Step 4)
   saveTaskInvoice(data: TaskInvoiceData): Observable<any> {
-    return this.http.post(`${this.apiBaseUrl}/saveTaskInvoice`, data);
+    return this.http.post(`${this.apiBaseUrl}/upload-bill`, data);
   }
+  uploadFile(client_id: string, username: string): Observable<any> {
+    return this.http.post(`${this.apiBaseUrl}/upload-contract`, { client_id, username });
+  }
+  // retrieveFile(client_id: string, username: string): Observable<any> {
+  //   return this.http.(`${this.apiBaseUrl}/list-contract`, { client_id, username });
+  // }
+
 }
