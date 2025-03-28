@@ -43,7 +43,7 @@ interface UploadedFile {
 export class TasksComponent implements OnInit, AfterViewInit {
   @ViewChild('stepper') stepper!: MatStepper;
 
-  private apiBaseUrl = 'https://a691-14-143-149-238.ngrok-free.app';
+  private apiBaseUrl = 'https://13c7-14-143-149-238.ngrok-free.app';
 
   isLinear = false;
   firstFormGroup: FormGroup;
@@ -72,11 +72,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
   invoiceSortOrder = 'desc';
 
   selectedClient: { username: string; client_id: string } = { username: '', client_id: '' };
-  clientId: string = ''; // ✅ Added clientId as a class property
-
-  completeTask(clientId: string) {
-    this.router.navigate(['/questionnaire'], { queryParams: { clientId: clientId } });
-  }
+  clientId: string = '';
 
   constructor(
     private _formBuilder: FormBuilder,
@@ -93,11 +89,12 @@ export class TasksComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit() {
+    console.log('TasksComponent initialized');
     try {
       const storedClient = sessionStorage.getItem('selectedClient');
 
       this.route.queryParams.subscribe(params => {
-        this.clientId = params['clientId'] || 'default-client-id'; // ✅ Set clientId from query params or fallback
+        this.clientId = params['clientId'] || 'default-client-id';
       });
 
       if (storedClient) {
@@ -105,12 +102,9 @@ export class TasksComponent implements OnInit, AfterViewInit {
 
         if (this.selectedClient?.client_id && this.selectedClient?.username) {
           console.log(`📌 Loaded client from sessionStorage: ${this.selectedClient.username} (Client ID: ${this.selectedClient.client_id})`);
-
-          // ✅ Use selectedClient.client_id if clientId isn’t set from query params
           if (!this.clientId || this.clientId === 'default-client-id') {
             this.clientId = this.selectedClient.client_id;
           }
-
           this.loadTaskProgress(this.selectedClient.client_id);
           this.loadUserTasks(this.selectedClient.client_id, this.selectedClient.username);
           this.loadFilesForClient(this.selectedClient.client_id);
@@ -141,8 +135,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
 
   loadUserTasks(clientId: string, username: string) {
     console.log(`📌 Fetching tasks for ${username} (Client ID: ${clientId})`);
-
-    fetch(`https://a691-14-143-149-238.ngrok-free.app=${clientId}`)
+    fetch(`https://13c7-14-143-149-238.ngrok-free.app/tasks?clientId=${clientId}`)
       .then(response => response.json())
       .then(tasks => {
         console.log(`✅ Loaded tasks for ${username}:`, tasks);
@@ -158,7 +151,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
 
   onCompleteClick(step: number, stepper: any, client_id: string) {
     this.onStepComplete(step, stepper);
-    this.router.navigate(['/questionnaire'], { queryParams: { clientId: this.selectedClient.client_id } }); // ✅ Use selectedClient.client_id
+    this.router.navigate(['/questionnaire'], { queryParams: { clientId: this.selectedClient.client_id } });
   }
 
   onStepComplete(stepIndex: number, stepper: MatStepper) {
@@ -190,7 +183,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
       timestamp: this.completionTimes[stepIndex]
     };
 
-    fetch('https://a691-14-143-149-238.ngrok-free.app', {
+    fetch(`${this.apiBaseUrl}/task-progress`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(progressUpdate)
@@ -219,11 +212,9 @@ export class TasksComponent implements OnInit, AfterViewInit {
         const parsedProgress = JSON.parse(storedProgress);
         this.stepCompleted = parsedProgress.stepCompleted?.length ? parsedProgress.stepCompleted : [false, false, false, false, false];
         this.completionTimes = parsedProgress.completionTimes?.length ? parsedProgress.completionTimes : [null, null, null, null, null];
-
         this.uploadedDraftFiles = parsedProgress.draftFiles || [];
         this.finalContract = parsedProgress.finalContract || null;
         this.uploadedInvoiceFiles = parsedProgress.invoiceFiles || [];
-
         console.log(`✅ Loaded progress for Client ID: ${clientId}`, parsedProgress);
       } else {
         console.log(`ℹ️ No saved progress for Client ID: ${clientId}, starting fresh.`);
@@ -245,33 +236,33 @@ export class TasksComponent implements OnInit, AfterViewInit {
     if (fileInput.files && fileInput.files.length > 0) {
       const file = fileInput.files[0];
       const allowedTypes = ['application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/pdf'];
-  
+
       if (!allowedTypes.includes(file.type)) {
         alert('Invalid file type. Only .doc, .docx, and .pdf are allowed.');
         return;
       }
-  
+
       this.fileName = file.name;
       this.fileSize = (file.size / 1024).toFixed(2) + ' KB';
       this.uploadProgress = 0;
       this.isUploading = true;
-  
+
       if (this.selectedClient) {
-        localStorage.setItem(`uploadedFile_${this.selectedClient.client_id}_${stepIndex}`, JSON.stringify({ 
-          name: this.fileName, 
+        localStorage.setItem(`uploadedFile_${this.selectedClient.client_id}_${stepIndex}`, JSON.stringify({
+          name: this.fileName,
           size: this.fileSize,
           date: new Date().toLocaleString()
         }));
       }
-  
+
       if (stepIndex === 2) {
-        this.uploadFinalContractToBackend(file); // ✅ Changed to use the new function for Step 2
+        this.uploadFinalContractToBackend(file); // Fixed method
       } else if (stepIndex === 3) {
-        this.uploadInvoice(file); // ✅ Kept for Step 4: Release Invoice
+        this.uploadInvoice(file);
       } else {
         this.uploadContractToBackend(file, stepIndex);
       }
-  
+
       fileInput.value = '';
     }
   }
@@ -311,21 +302,6 @@ export class TasksComponent implements OnInit, AfterViewInit {
           this.uploadedDraftFiles.unshift(uploadedFile);
           this.sortFiles();
           this.filterFiles();
-        } else if (stepIndex === 2) {
-          this.finalContract = uploadedFile;
-        } else if (stepIndex === 3) {
-          let latestInvoiceNumber = 1;
-          if (this.uploadedInvoiceFiles.length > 0) {
-            const invoiceNumbers = this.uploadedInvoiceFiles.map(file => {
-              const match = file.name.match(/Invoice#(\d+)/);
-              return match ? parseInt(match[1], 10) : 0;
-            });
-            latestInvoiceNumber = Math.max(...invoiceNumbers) + 1;
-          }
-          uploadedFile.name = `Invoice#${latestInvoiceNumber}`;
-          this.uploadedInvoiceFiles.unshift(uploadedFile);
-          this.sortInvoiceFiles();
-          this.filterInvoiceFiles();
         }
 
         this.cdr.detectChanges();
@@ -350,41 +326,41 @@ export class TasksComponent implements OnInit, AfterViewInit {
   fetchContracts(): void {
     console.log('Fetching contracts from:', `${this.apiBaseUrl}/list-contract/${this.selectedClient.username}/${this.selectedClient.client_id}`);
     this.http.get<any>(`${this.apiBaseUrl}/list-contract/${this.selectedClient.username}/${this.selectedClient.client_id}`, {
-        headers: new HttpHeaders({ 'Accept': 'application/json', 'ngrok-skip-browser-warning': "69420" })
+      headers: new HttpHeaders({ 'Accept': 'application/json', 'ngrok-skip-browser-warning': "69420" })
     }).subscribe({
-        next: (response) => {
-            const contracts = response.contracts || response || [];
-            console.log('Fetched Contracts:', contracts);
+      next: (response) => {
+        const contracts = response.contracts || response || [];
+        console.log('Fetched Contracts:', contracts);
 
-            const mappedContracts: UploadedFile[] = contracts.map((contract: any) => ({
-                name: contract.name,
-                size: contract.size || 'Unknown',
-                type: this.getFileType(contract.name),
-                date: contract.date || new Date().toLocaleString(),
-                url: contract.url || '',
-                status: contract.status || 'Pending',
-                amount: contract.amount || 0,
-                plan: contract.plan || 'Basic',
-                step: contract.step || undefined
-            }));
+        const mappedContracts: UploadedFile[] = contracts.map((contract: any) => ({
+          name: contract.name,
+          size: contract.size || 'Unknown',
+          type: this.getFileType(contract.name),
+          date: contract.date || new Date().toLocaleString(),
+          url: contract.url || '',
+          status: contract.status || 'Pending',
+          amount: contract.amount || 0,
+          plan: contract.plan || 'Basic',
+          step: contract.step || undefined
+        }));
 
-            this.finalContract = mappedContracts.find(c => c.step === 2) || null;
-            this.uploadedDraftFiles = mappedContracts.filter(c => c.step === 1 || c.step === undefined);
-            this.uploadedInvoiceFiles = mappedContracts.filter(c => c.step === 3);
-            this.filteredDraftFiles = [...this.uploadedDraftFiles];
-            this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles];
+        this.finalContract = mappedContracts.find(c => c.step === 2) || null;
+        this.uploadedDraftFiles = mappedContracts.filter(c => c.step === 1 || c.step === undefined);
+        this.uploadedInvoiceFiles = mappedContracts.filter(c => c.step === 3);
+        this.filteredDraftFiles = [...this.uploadedDraftFiles];
+        this.filteredInvoiceFiles = [...this.uploadedInvoiceFiles];
 
-            this.sortFiles();
-            this.filterFiles();
-            this.sortInvoiceFiles();
-            this.filterInvoiceFiles();
+        this.sortFiles();
+        this.filterFiles();
+        this.sortInvoiceFiles();
+        this.filterInvoiceFiles();
 
-            this.cdr.detectChanges();
-        },
-        error: (error) => {
-            console.error('Error fetching contracts:', error);
-            alert(`Failed to fetch contracts: ${error.statusText || error.message}`);
-        }
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error fetching contracts:', error);
+        alert(`Failed to fetch contracts: ${error.statusText || error.message}`);
+      }
     });
   }
 
@@ -453,10 +429,10 @@ export class TasksComponent implements OnInit, AfterViewInit {
   saveAndContinue(stepIndex: number, stepper: MatStepper) {
     if (this.uploadProgress === 100) {
       alert('File uploaded successfully!');
-  
+
       if (this.selectedClient) {
         const clientId = this.selectedClient.client_id;
-  
+
         if (stepIndex === 1) {
           localStorage.setItem(`uploadedDraftFiles_${clientId}`, JSON.stringify(this.uploadedDraftFiles));
         } else if (stepIndex === 2) {
@@ -465,7 +441,7 @@ export class TasksComponent implements OnInit, AfterViewInit {
         } else if (stepIndex === 3) {
           localStorage.setItem(`uploadedInvoiceFiles_${clientId}`, JSON.stringify(this.uploadedInvoiceFiles));
         }
-  
+
         this.saveTaskProgress();
         this.onStepComplete(stepIndex, stepper);
       }
@@ -527,123 +503,74 @@ export class TasksComponent implements OnInit, AfterViewInit {
     console.log('Filtered draft files:', this.filteredDraftFiles);
   }
 
-  async uploadFinalContract(file: File): Promise<string> {
-    if (!file) {
-        console.warn('⚠️ No file selected for upload.');
-        return '';
-    }
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('client_id', this.selectedClient.client_id);
-    formData.append('step', '2');
-
-    console.log('📤 Uploading final contract to:', `${this.apiBaseUrl}/upload-contract`);
-    console.log('📂 File Name:', file.name);
-    console.log('🆔 Client ID:', this.selectedClient.client_id);
-
-    try {
-        const response = await this.http.post<{ message: string; filename: string }>(
-            `${this.apiBaseUrl}/upload-contract`,
-            formData,
-            {
-                headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
-                reportProgress: true,
-                observe: 'response'
-            }
-        ).toPromise();
-
-        if (response?.status !== 200) {
-            throw new Error(`❌ Upload failed with status: ${response?.status}`);
-        }
-
-        const responseBody = response.body;
-        if (responseBody?.message && responseBody?.filename) {
-            console.log('✅ Final contract uploaded successfully:', responseBody.filename);
-            alert(`🎉 Success!\n${responseBody.message}`);
-
-            this.finalContract = {
-                name: responseBody.filename,
-                size: (file.size / 1024).toFixed(2) + ' KB',
-                type: this.getFileType(file.name),
-                date: new Date().toLocaleString(),
-                url: URL.createObjectURL(file),
-                status: 'Pending',
-                amount: 0,
-                plan: 'Basic',
-                step: 2
-            };
-            this.cdr.detectChanges();
-
-            this.fetchContracts();
-
-            return responseBody.filename;
-        } else {
-            throw new Error('❌ Unexpected response format from the server');
-        }
-    } catch (err: any) {
-        console.error('❌ Final contract upload failed:', err);
-        alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
-        return '';
-    }
-  }
-
   async uploadFinalContractToBackend(file: File): Promise<string> {
     if (!file) {
       console.warn('⚠️ No file selected for upload.');
       return '';
     }
-  
+
+    if (!this.selectedClient || !this.selectedClient.client_id) {
+      console.error('❌ No selected client or client_id for upload.');
+      return '';
+    }
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('client_id', this.selectedClient.client_id);
-  
+    formData.append('username', this.selectedClient.username); // Explicitly set step for final contract
+
     console.log('📤 Uploading final contract to:', `${this.apiBaseUrl}/upload-final-contract`);
     console.log('📂 File Name:', file.name);
     console.log('🆔 Client ID:', this.selectedClient.client_id);
-  
+
+    this.uploadProgress = 0;
+    this.isUploading = true;
+
     try {
       const response = await this.http.post<{ message: string; filename: string }>(
         `${this.apiBaseUrl}/upload-final-contract`,
         formData,
         {
-          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
+          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': '69420' }),
           reportProgress: true,
           observe: 'response'
         }
       ).toPromise();
-  
-      if (response?.status !== 200) {
-        throw new Error(`❌ Upload failed with status: ${response?.status}`);
-      }
-  
-      const responseBody = response.body;
-      if (responseBody?.message && responseBody?.filename) {
-        console.log('✅ Final contract uploaded successfully:', responseBody.filename);
-        alert(`🎉 Success!\n${responseBody.message}`);
-  
+
+      console.log('✅ Server response:', response);
+
+      if (response?.status === 200 && response.body) {
+        const { message, filename } = response.body;
+        console.log('✅ Final contract uploaded successfully:', filename);
+        alert(`🎉 Success!\n${message}`);
+
         this.finalContract = {
-          name: responseBody.filename,
+          name: filename,
           size: (file.size / 1024).toFixed(2) + ' KB',
           type: this.getFileType(file.name),
           date: new Date().toLocaleString(),
-          url: URL.createObjectURL(file),
+          url: URL.createObjectURL(file), // Use server-provided URL if available
           status: 'Pending',
           amount: 0,
           plan: 'Basic',
           step: 2
         };
+
+        this.uploadProgress = 100;
+        this.isUploading = false;
         this.cdr.detectChanges();
-  
         this.fetchContracts();
-  
-        return responseBody.filename;
+
+        return filename;
       } else {
-        throw new Error('❌ Unexpected response format from the server');
+        throw new Error('Unexpected response format from server');
       }
-    } catch (err: any) {
-      console.error('❌ Final contract upload failed:', err);
-      alert(`⚠️ File upload failed!\nError: ${err.message || err.statusText || 'Unknown error'}`);
+    } catch (error: any) {
+      console.error('❌ Final contract upload failed:', error);
+      alert(`⚠️ File upload failed!\nError: ${error.message || error.statusText || 'Unknown error'}`);
+      this.uploadProgress = 0;
+      this.isUploading = false;
+      this.cdr.detectChanges();
       return '';
     }
   }
@@ -653,37 +580,37 @@ export class TasksComponent implements OnInit, AfterViewInit {
       console.warn('⚠️ No file selected for upload.');
       return '';
     }
-  
+
     const formData = new FormData();
     formData.append('file', file);
     formData.append('client_id', this.selectedClient.client_id);
     formData.append('username', this.selectedClient.username);
-    formData.append('invoice_id', `Invoice#${Date.now()}`); // Unique invoice ID based on timestamp
-  
+    formData.append('invoice_id', `Invoice#${Date.now()}`);
+
     console.log('📤 Uploading invoice to:', `${this.apiBaseUrl}/upload-bill`);
     console.log('📂 File Name:', file.name);
     console.log('🆔 Client ID:', this.selectedClient.client_id);
-  
+
     try {
       const response = await this.http.post<{ message: string; filename: string }>(
         `${this.apiBaseUrl}/upload-bill`,
         formData,
         {
-          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': "69420" }),
+          headers: new HttpHeaders({ 'ngrok-skip-browser-warning': '69420' }),
           reportProgress: true,
           observe: 'response'
         }
       ).toPromise();
-  
+
       if (response?.status !== 200) {
         throw new Error(`❌ Upload failed with status: ${response?.status}`);
       }
-  
+
       const responseBody = response.body;
       if (responseBody?.message && responseBody?.filename) {
         console.log('✅ Invoice uploaded successfully:', responseBody.filename);
         alert(`🎉 Success!\n${responseBody.message}`);
-  
+
         const uploadedFile: UploadedFile = {
           name: responseBody.filename,
           size: (file.size / 1024).toFixed(2) + ' KB',
@@ -699,9 +626,8 @@ export class TasksComponent implements OnInit, AfterViewInit {
         this.sortInvoiceFiles();
         this.filterInvoiceFiles();
         this.cdr.detectChanges();
-  
-        this.fetchContracts(); // Refresh the contract list
-  
+
+        this.fetchContracts();
         return responseBody.filename;
       } else {
         throw new Error('❌ Unexpected response format from the server');
@@ -743,18 +669,6 @@ export class TasksComponent implements OnInit, AfterViewInit {
     this.cdr.markForCheck();
     this.cdr.detectChanges();
     console.log('✅ Sorted and numbered invoice files:', this.filteredInvoiceFiles);
-  }
-
-  sortInvoicesByDateAndAssignNumbers() {
-    this.uploadedInvoiceFiles.sort((a, b) => {
-      return new Date(b.date).getTime() - new Date(a.date).getTime();
-    });
-
-    this.uploadedInvoiceFiles.forEach((file, index) => {
-      file.name = `Invoice#${this.uploadedInvoiceFiles.length - index}`;
-    });
-
-    console.log("✅ Invoices sorted and numbered:", this.uploadedInvoiceFiles);
   }
 
   filterInvoiceFiles() {
@@ -849,10 +763,10 @@ export class TasksComponent implements OnInit, AfterViewInit {
           finalContract: this.finalContract,
           invoiceFiles: [...this.uploadedInvoiceFiles]
         };
-  
+
         localStorage.setItem(progressKey, JSON.stringify(progressData));
         console.log(`✅ Saved progress for Client ID: ${this.selectedClient.client_id}`, progressData);
-  
+
         this.cdr.detectChanges();
       } else {
         console.warn('⚠️ No selected client to save progress for.');
@@ -873,5 +787,9 @@ export class TasksComponent implements OnInit, AfterViewInit {
       this.sortInvoiceFiles();
       this.filterInvoiceFiles();
     }
+  }
+
+  completeTask(clientId: string) {
+    this.router.navigate(['/questionnaire'], { queryParams: { clientId: clientId } });
   }
 }

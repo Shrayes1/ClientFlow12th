@@ -45,8 +45,8 @@ export class ContractAddComponent implements OnInit {
   // API URLs
   private apiBaseUrl = 'https://add-list-new-client.onrender.com/';
   private addUserApi = `${this.apiBaseUrl}add_client`;
-  private createFolderApi = `https://a691-14-143-149-238.ngrok-free.app/create_folder`;
-  private uploadFileApi = `https://a691-14-143-149-238.ngrok-free.app/upload_proposal/`;
+  private createFolderApi = `https://13c7-14-143-149-238.ngrok-free.app/create_folder`;
+  private uploadFileApi = `https://13c7-14-143-149-238.ngrok-free.app/upload_proposal/`;
   private getUsersApi = `${this.apiBaseUrl}get_all_clients`;
 
   users: User[] = [];

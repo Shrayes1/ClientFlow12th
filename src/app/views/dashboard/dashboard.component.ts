@@ -21,7 +21,6 @@ import {
 } from '@coreui/angular';
 import { ChartjsComponent } from '@coreui/angular-chartjs';
 import { IconDirective } from '@coreui/icons-angular';
-
 import { WidgetsBrandComponent } from '../widgets/widgets-brand/widgets-brand.component';
 import { WidgetsDropdownComponent } from '../widgets/widgets-dropdown/widgets-dropdown.component';
 import { DashboardChartsData, IChartProps } from './dashboard-charts-data';
@@ -31,9 +30,9 @@ interface IUser {
   state: string;
   registered: string;
   country: string;
-  progress: number; // Changed from usage to progress
-  step: string;     // Changed from period to step
-  signupMethod: string; // Changed from payment to signupMethod
+  progress: number;
+  step: string;
+  signupMethod: string;
   activity: string;
   avatar: string;
   status: string;
@@ -41,8 +40,10 @@ interface IUser {
 }
 
 @Component({
+  selector: 'app-dashboard',
   templateUrl: 'dashboard.component.html',
   styleUrls: ['dashboard.component.scss'],
+  standalone: true,
   imports: [
     WidgetsDropdownComponent,
     TextColorDirective,
@@ -162,11 +163,12 @@ export class DashboardComponent implements OnInit {
     }
   });
   public chart: Array<IChartProps> = [];
-  public periodRadioGroup = new FormGroup({  // Changed from trafficRadioGroup to periodRadioGroup
-    periodRadio: new FormControl('Month')    // Changed from trafficRadio to periodRadio
+  public periodRadioGroup = new FormGroup({
+    periodRadio: new FormControl('Month')
   });
 
   ngOnInit(): void {
+    console.log('DashboardComponent loaded');
     this.initCharts();
     this.updateChartOnColorModeChange();
   }
@@ -175,9 +177,9 @@ export class DashboardComponent implements OnInit {
     this.mainChart = this.#chartsData.mainChart;
   }
 
-  setPeriod(value: string): void {  // Changed from setTrafficPeriod to setPeriod
+  setPeriod(value: string): void {
     this.periodRadioGroup.setValue({ periodRadio: value });
-    this.#chartsData.initMainChart(value);  // Assuming initMainChart can handle onboarding data
+    this.#chartsData.initMainChart(value);
     this.initCharts();
   }
 

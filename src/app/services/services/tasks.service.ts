@@ -20,7 +20,7 @@ export interface TaskInvoiceData {
   providedIn: 'root'
 })
 export class TasksService {
-  private apiBaseUrl = 'https://a691-14-143-149-238.ngrok-free.app';  // 🔹 Change to your API URL
+  private apiBaseUrl = 'https://13c7-14-143-149-238.ngrok-free.app';  // 🔹 Change to your API URL
 
   constructor(private http: HttpClient) {}
 

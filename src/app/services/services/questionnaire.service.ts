@@ -6,7 +6,7 @@ import { Observable } from 'rxjs';
   providedIn: 'root'
 })
 export class QuestionnaireService {
-  private apiUrl = 'https://a691-14-143-149-238.ngrok-free.app';
+  private apiUrl = 'https://13c7-14-143-149-238.ngrok-free.app';
 
   constructor(private http: HttpClient) {}
 
